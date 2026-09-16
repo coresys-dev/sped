@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, onDeviceEvent } from "./api";
 import { ActionsSidebar } from "./components/ActionsSidebar";
+import { AppTitleBar } from "./components/AppTitleBar";
 import { DevPanel } from "./components/DevPanel";
-import { Header } from "./components/Header";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import { SpeedEditor } from "./components/SpeedEditor";
-import { TitleBar } from "./cscl-ui/window/TitleBar";
 import type {
   Action,
   ControlEvent,
@@ -35,7 +34,6 @@ export default function App() {
   const [selected, setSelected] = useState<ControlId | null>(null);
   const [obsStatus, setObsStatus] = useState<ObsStatus>({ state: "disconnected" });
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [addKeyboardRequested, setAddKeyboardRequested] = useState(false);
 
   const [devPanelOpen, setDevPanelOpen] = useState(DEV_MODE);
   const [eventLog, setEventLog] = useState<{ time: string; event: ControlEvent }[]>([]);
@@ -180,9 +178,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col bg-bg">
-      <TitleBar />
-
-      <Header
+      <AppTitleBar
         deviceStatus={deviceStatus}
         profileManager={{
           profiles,
@@ -228,13 +224,7 @@ export default function App() {
       />
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
-        <ActionsSidebar
-          obsStatus={obsStatus}
-          onCustomKeyboard={() => {
-            if (selected) setAddKeyboardRequested(true);
-          }}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+        <ActionsSidebar obsStatus={obsStatus} onOpenSettings={() => setSettingsOpen(true)} />
 
         <main className="flex min-w-0 flex-1 items-center justify-center overflow-auto">
           <SpeedEditor
@@ -253,8 +243,6 @@ export default function App() {
           actions={actionsForSelected}
           onAddAction={(action) => selected && addActionToControl(selected, action)}
           onRemoveAction={(index) => selected && removeActionFromControl(selected, index)}
-          addKeyboardRequested={addKeyboardRequested}
-          onAddKeyboardHandled={() => setAddKeyboardRequested(false)}
         />
       </div>
 

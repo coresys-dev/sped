@@ -29,16 +29,23 @@ impl Default for ObsSettings {
 #[serde(rename_all = "camelCase")]
 pub struct JogSettings {
     /// Multiplier applied to raw wheel deltas. 1.0 = hardware-reported
-    /// value untouched.
+    /// value untouched. Default (0.5) is deliberately tame -- the raw
+    /// deltas from the wheel are large enough that 1.0 reads as far too
+    /// sensitive in practice.
     pub sensitivity: f32,
     pub invert: bool,
+    /// Raw per-event delta magnitude at or below which a jog/shuttle event
+    /// is dropped entirely (not even emitted to the frontend), to absorb
+    /// the wheel's smallest, likely-unintentional movements.
+    pub deadzone: i32,
 }
 
 impl Default for JogSettings {
     fn default() -> Self {
         Self {
-            sensitivity: 1.0,
+            sensitivity: 0.5,
             invert: false,
+            deadzone: 0,
         }
     }
 }

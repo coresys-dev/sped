@@ -36,19 +36,18 @@ const OBS_TRANSPORT_ITEMS: { label: string; op: string }[] = [
 ];
 
 const OBS_STATUS_STYLE: Record<ObsStatus["state"], string> = {
-  connected: "text-emerald-400",
-  connecting: "text-amber-400",
+  connected: "text-accent",
+  connecting: "text-accent-2",
   error: "text-danger",
   disconnected: "text-text-muted",
 };
 
 export interface ActionsSidebarProps {
   obsStatus: ObsStatus;
-  onCustomKeyboard: () => void;
   onOpenSettings: () => void;
 }
 
-export function ActionsSidebar({ obsStatus, onCustomKeyboard, onOpenSettings }: ActionsSidebarProps) {
+export function ActionsSidebar({ obsStatus, onOpenSettings }: ActionsSidebarProps) {
   const scenes = obsStatus.state === "connected" ? obsStatus.scenes : [];
 
   return (
@@ -58,20 +57,9 @@ export function ActionsSidebar({ obsStatus, onCustomKeyboard, onOpenSettings }: 
           Actions
         </div>
 
-        <section className="mb-4">
-          <h3 className="mb-1.5 text-xs font-semibold text-text">Keyboard</h3>
-          <DraggableItem label="Ctrl + B" payload={{ kind: "keyboard", keys: ["CTRL", "B"] }} />
-          <DraggableItem label="Space" payload={{ kind: "keyboard", keys: ["SPACE"] }} />
-          <DraggableItem label="Enter" payload={{ kind: "keyboard", keys: ["ENTER"] }} />
-          <DraggableItem label="Esc" payload={{ kind: "keyboard", keys: ["ESC"] }} />
-          <div
-            className="cursor-pointer px-2 py-1 text-xs text-accent"
-            onClick={onCustomKeyboard}
-            role="button"
-          >
-            + Custom shortcut…
-          </div>
-        </section>
+        <p className="mb-4 text-[11px] leading-relaxed text-text-muted">
+          Keyboard shortcuts are assigned directly on a selected control's properties panel.
+        </p>
 
         <section className="mb-4">
           <h3 className="mb-1.5 text-xs font-semibold text-text">OBS Studio</h3>

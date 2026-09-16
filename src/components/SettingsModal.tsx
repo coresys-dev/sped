@@ -134,11 +134,22 @@ export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClos
           <SidebarTabsDialogRow label={`Jog / shuttle sensitivity (${settings.jog.sensitivity.toFixed(2)}×)`}>
             <Slider
               value={settings.jog.sensitivity}
-              min={0.25}
+              min={0.05}
               max={3}
               step={0.05}
               ariaLabel="Jog and shuttle sensitivity"
               onChange={(sensitivity) => patch({ ...settings, jog: { ...settings.jog, sensitivity } })}
+            />
+          </SidebarTabsDialogRow>
+
+          <SidebarTabsDialogRow label={`Deadzone (${settings.jog.deadzone} tick${settings.jog.deadzone === 1 ? "" : "s"})`}>
+            <Slider
+              value={settings.jog.deadzone}
+              min={0}
+              max={10}
+              step={1}
+              ariaLabel="Jog and shuttle deadzone"
+              onChange={(deadzone) => patch({ ...settings, jog: { ...settings.jog, deadzone } })}
             />
           </SidebarTabsDialogRow>
 
@@ -152,7 +163,8 @@ export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClos
 
           <p className="text-[11px] leading-relaxed text-text-muted">
             Sensitivity scales raw jog/shuttle deltas from the device before they reach the
-            visualizer and the mapping engine.
+            visualizer and the mapping engine. Movements at or below the deadzone are ignored
+            entirely, to absorb the wheel's smallest, likely-unintentional nudges.
           </p>
         </div>
       )}

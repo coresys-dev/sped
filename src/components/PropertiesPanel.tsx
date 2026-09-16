@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ShortcutRecorder } from "../cscl-ui/inputs/ShortcutRecorder";
 import { IconButton } from "../cscl-ui/primitives/IconButton";
 import { actionCategory, actionLabel, comboStringToKeys, type Action, type ControlId } from "../types";
@@ -9,8 +9,6 @@ export interface PropertiesPanelProps {
   actions: Action[];
   onAddAction: (action: Action) => void;
   onRemoveAction: (index: number) => void;
-  addKeyboardRequested: boolean;
-  onAddKeyboardHandled: () => void;
 }
 
 function controlDisplayName(id: ControlId): string {
@@ -20,24 +18,8 @@ function controlDisplayName(id: ControlId): string {
     .join(" ");
 }
 
-export function PropertiesPanel({
-  control,
-  actions,
-  onAddAction,
-  onRemoveAction,
-  addKeyboardRequested,
-  onAddKeyboardHandled,
-}: PropertiesPanelProps) {
+export function PropertiesPanel({ control, actions, onAddAction, onRemoveAction }: PropertiesPanelProps) {
   const [recorderKey, setRecorderKey] = useState(0);
-
-  useEffect(() => {
-    if (!addKeyboardRequested) return;
-    // "+ Custom shortcut…" in the sidebar has no target of its own -- it
-    // drives this panel's recorder instead, as a real click (not just
-    // focus) so ShortcutRecorder actually enters its recording state.
-    const button = document.getElementById("keyboard-shortcut-recorder")?.querySelector("button");
-    (button as HTMLButtonElement | null)?.click();
-  }, [addKeyboardRequested]);
 
   return (
     <aside className="animate-chrome-in flex h-full w-72 shrink-0 flex-col overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-float">
@@ -81,7 +63,7 @@ export function PropertiesPanel({
             ))}
           </ul>
 
-          <div className="mb-4 flex flex-col gap-1.5" id="keyboard-shortcut-recorder">
+          <div className="mb-4 flex flex-col gap-1.5">
             <span className="text-[11px] text-text-muted">Keyboard shortcut</span>
             <ShortcutRecorder
               key={recorderKey}
@@ -89,15 +71,14 @@ export function PropertiesPanel({
               recordingLabel="Press keys…"
               onChange={(combo) => {
                 onAddAction({ kind: "keyboard", keys: comboStringToKeys(combo) });
-                onAddKeyboardHandled();
                 setRecorderKey((k) => k + 1);
               }}
             />
           </div>
 
           <p className="text-[11px] leading-relaxed text-text-muted">
-            Drag an action from the sidebar onto this control on the visualizer, or record a
-            keyboard shortcut above.
+            Drag an OBS action from the sidebar onto this control, or record a keyboard shortcut
+            above.
           </p>
         </>
       )}

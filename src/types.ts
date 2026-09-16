@@ -81,6 +81,7 @@ export interface ObsSettings {
 export interface JogSettings {
   sensitivity: number;
   invert: boolean;
+  deadzone: number;
 }
 
 export interface GeneralSettings {
