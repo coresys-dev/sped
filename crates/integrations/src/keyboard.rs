@@ -141,7 +141,9 @@ mod tests {
     #[test]
     fn non_keyboard_action_is_unsupported() {
         let executor = KeyboardExecutor::new();
-        let action = Action::Obs(sped_mapping::ObsAction::StartRecording);
+        let action = Action::Obs(sped_mapping::ObsAction::Recording {
+            mode: sped_mapping::RecordingMode::Toggle,
+        });
         assert!(matches!(
             executor.execute(&action),
             Err(ActionError::Unsupported)
