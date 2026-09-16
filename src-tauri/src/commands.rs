@@ -205,6 +205,13 @@ pub fn get_mapping(state: State<AppState>, control: String) -> Result<Vec<Mappin
 
 #[tauri::command]
 pub fn obs_connect(state: State<AppState>, host: String, port: u16, password: Option<String>) {
+    // The frontend's password field is a *draft* for setting a new
+    // password (via "Save"), not a mirror of what's stored -- if the user
+    // already saved one earlier and leaves the field empty when clicking
+    // Connect, fall back to the stored keyring password rather than
+    // silently connecting unauthenticated (which fails the handshake
+    // against any OBS instance with authentication enabled).
+    let password = password.filter(|p| !p.is_empty()).or_else(settings::get_obs_password);
     state.obs.connect(host, port, password);
 }
 

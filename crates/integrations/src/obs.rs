@@ -1,8 +1,24 @@
 use obws::Client;
 use serde::Serialize;
 use sped_mapping::{Action, ActionError, ActionExecutor, ObsAction};
+use std::error::Error as StdError;
+use std::fmt::Write as _;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
+
+/// `obws`'s top-level `Error` wraps the real cause (e.g. auth rejected,
+/// connection refused) in a `source()` chain that `.to_string()` alone
+/// never surfaces -- every OBS error would otherwise just read "failed to
+/// execute the handshake with obs-websocket" with no indication of *why*.
+fn describe_error(err: &(dyn StdError + 'static)) -> String {
+    let mut message = err.to_string();
+    let mut source = err.source();
+    while let Some(cause) = source {
+        let _ = write!(message, ": {cause}");
+        source = cause.source();
+    }
+    message
+}
 
 /// Connection state surfaced to the UI. OBS being unreachable is a normal,
 /// expected state -- never a panic.
@@ -73,7 +89,7 @@ impl ObsIntegration {
                         .unwrap_or_default();
                     Ok((client, scenes))
                 }
-                Err(e) => Err(e.to_string()),
+                Err(e) => Err(describe_error(&e)),
             };
 
             // The lock is only ever taken synchronously (never across an
@@ -121,7 +137,7 @@ impl ObsIntegration {
                 ObsAction::StopStreaming => client.streaming().stop().await,
             };
 
-            result.map_err(|e| ActionError::Failed(e.to_string()))
+            result.map_err(|e| ActionError::Failed(describe_error(&e)))
         })
     }
 }
