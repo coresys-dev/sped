@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speed Editor — Visual Layout Reference</title>
+<style>
+  :root {
+    --body: #101114;
+    --device: #34363a;
+    --device-edge: #25272a;
+    --button: #1d1f21;
+    --button-hover: #292b2f;
+    --white-key: #deddd4;
+    --white-text: #242424;
+    --text: #e8e8e8;
+    --muted: #8c8d90;
+    --red: #c94f4c;
+    --gap: 6px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(circle at 50% 40%, #25272b 0%, var(--body) 65%);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .page {
+    width: min(900px, 94vw);
+    padding: 40px 0;
+  }
+
+  .device {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1.4216 / 1;
+    min-height: 340px;
+    border-radius: 22px;
+    background: linear-gradient(145deg, #414348, #2e3034 70%);
+    border: 2px solid var(--device-edge);
+    box-shadow:
+      0 35px 80px rgba(0,0,0,.55),
+      inset 0 1px 1px rgba(255,255,255,.08);
+    overflow: hidden;
+  }
+
+  .brand {
+    position: absolute;
+    left: 4.5%;
+    top: 5%;
+    width: 66%;
+    height: 6%;
+    font-size: clamp(10px, 1.3vw, 15px);
+    letter-spacing: .06em;
+    color: #a9aaac;
+    font-weight: 500;
+  }
+
+  .brand strong { font-weight: 400; }
+
+  .brand-sub {
+    position: absolute;
+    left: 96%;
+    top: 6.5%;
+    writing-mode: vertical-rl;
+    font-size: clamp(7px, .9vw, 10px);
+    letter-spacing: .05em;
+    color: #8d8e90;
+  }
+
+  .keys {
+    position: relative;
+    border-radius: 7px;
+    background: linear-gradient(145deg, var(--button-hover), var(--button));
+    border: 1px solid #111214;
+    color: var(--text);
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 4px;
+    font-size: clamp(8px, .78vw, 12px);
+    line-height: 1.05;
+    letter-spacing: .015em;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: transform .08s, background .12s, box-shadow .12s;
+    box-shadow: inset 0 1px rgba(255,255,255,.04), 0 2px 2px rgba(0,0,0,.3);
+  }
+
+  .keys:hover {
+    background: #303237;
+    box-shadow: 0 0 0 2px rgba(124,92,255,.5), inset 0 1px rgba(255,255,255,.05);
+  }
+
+  .keys:active { transform: translateY(1px); }
+
+  .keys.selected {
+    outline: 2px solid #7c5cff;
+    outline-offset: 2px;
+  }
+
+  .keys.light {
+    background: linear-gradient(145deg, #eeece2, #d2d1c9);
+    color: var(--white-text);
+  }
+
+  .keys.red {
+    background: linear-gradient(145deg, #d45a56, #b94340);
+    color: #fff;
+  }
+
+  .keys span {
+    display: block;
+    font-size: .68em;
+    color: var(--muted);
+    margin-top: 3px;
+    font-weight: 500;
+  }
+
+  .light span { color: #77766f; }
+
+  /* ---- Trim / edit-point cluster: IN/OUT wide row on top + 3x3 below ---- */
+  .trim-cluster {
+    position: absolute;
+    left: 4.3%;
+    top: 43.7%;
+    width: 25.4%;
+    height: 47.4%;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: var(--gap);
+  }
+
+  .trim-cluster .in-key  { grid-column: 1 / span 3; grid-row: 1; }
+  .trim-cluster .out-key { grid-column: 4 / span 3; grid-row: 1; }
+  .trim-cluster .cA { grid-column: 1 / span 2; }
+  .trim-cluster .cB { grid-column: 3 / span 2; }
+  .trim-cluster .cC { grid-column: 5 / span 2; }
+  .trim-cluster .row2 { grid-row: 2; }
+  .trim-cluster .row3 { grid-row: 3; }
+  .trim-cluster .row4 { grid-row: 4; }
+
+  /* ---- Transport / bin cluster: 3 cols x 2 rows ---- */
+  .transport-cluster {
+    position: absolute;
+    left: 4.3%;
+    top: 15.6%;
+    width: 25.4%;
+    height: 23.4%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: var(--gap);
+  }
+
+  /* ---- CAM cluster: 4 cols x 3 rows + STOP/PLAY bottom bar ---- */
+  .cam-cluster {
+    position: absolute;
+    left: 35.2%;
+    top: 43.7%;
+    width: 32.9%;
+    height: 47.4%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr) 0.85fr;
+    gap: var(--gap);
+  }
+
+  .cam-cluster .stop-play {
+    grid-column: 1 / span 4;
+    grid-row: 4;
+    font-size: clamp(9px, .85vw, 13px);
+  }
+
+  /* ---- Edit cluster: 4 cols x 2 rows ---- */
+  .edit-cluster {
+    position: absolute;
+    left: 37.4%;
+    top: 15.6%;
+    width: 30.7%;
+    height: 23.4%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: var(--gap);
+  }
+
+  /* ---- Jog wheel, right side ---- */
+  .jog {
+    position: absolute;
+    left: 73.7%;
+    top: 48%;
+    width: 22.3%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 50%, #151618 0 58%, #25272a 59% 68%, #111214 69% 74%, #2d2f32 75% 100%);
+    border: 2px solid #17181a;
+    box-shadow:
+      inset 0 0 0 5px #25272a,
+      0 5px 12px rgba(0,0,0,.45);
+  }
+
+  .jog::after {
+    content: "";
+    position: absolute;
+    width: 17%;
+    height: 17%;
+    right: 15%;
+    bottom: 15%;
+    border-radius: 50%;
+    background: #242528;
+    box-shadow: inset 1px 1px 2px rgba(255,255,255,.07);
+  }
+
+  /* ---- SHTL / JOG / SCRL horizontal row ---- */
+  .shuttle {
+    position: absolute;
+    left: 73.7%;
+    top: 33.9%;
+    width: 22.3%;
+    height: 10.4%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--gap);
+  }
+
+  /* ---- SOURCE / TIMELINE horizontal pair ---- */
+  .source-timeline {
+    position: absolute;
+    left: 73.7%;
+    top: 15.1%;
+    width: 22.3%;
+    height: 13%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--gap);
+  }
+
+  .small-white {
+    background: linear-gradient(145deg, #efeee7, #d7d6ce);
+    color: #262626;
+  }
+
+  .annotation {
+    margin-top: 18px;
+    color: #888a8f;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  @media (max-width: 850px) {
+    .device {
+      min-height: 260px;
+      border-radius: 16px;
+    }
+    .keys { font-size: 6.5px; }
+    .brand { font-size: 8px; }
+    .brand-sub { font-size: 7px; }
+    .trim-cluster, .transport-cluster, .cam-cluster, .edit-cluster,
+    .shuttle, .source-timeline { gap: 3px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="device" id="speed-editor">
+
+    <div class="brand">DAVINCI RESOLVE <strong>SPEED EDITOR</strong></div>
+    <div class="brand-sub">Blackmagic</div>
+
+    <!-- Transport / bin cluster (3x2) -->
+    <div class="transport-cluster">
+      <button class="keys" data-control="smart-insert">SMART<br>INSRT</button>
+      <button class="keys" data-control="append">APPND<span>CLIP</span></button>
+      <button class="keys" data-control="ripple-owr">RIPL<br>O/WR</button>
+
+      <button class="keys" data-control="close-up">CLOSE<br>UP<span>YPOS</span></button>
+      <button class="keys" data-control="place-top">PLACE<br>ON TOP<span>CLIP</span></button>
+      <button class="keys" data-control="source-owr">SRC<br>O/WR</button>
+    </div>
+
+    <!-- Edit cluster (4x2) -->
+    <div class="edit-cluster">
+      <button class="keys" data-control="esc">ESC<span>UNDO</span></button>
+      <button class="keys" data-control="sync-bin">SYNC<br>BIN</button>
+      <button class="keys" data-control="audio-level">AUDIO<br>LEVEL<span>MARK</span></button>
+      <button class="keys red" data-control="full-view">FULL<br>VIEW<span>RVW</span></button>
+
+      <button class="keys" data-control="trans-title">TRANS<span>TITLE</span></button>
+      <button class="keys" data-control="split-move">SPLIT<span>MOVE</span></button>
+      <button class="keys" data-control="snap">SNAP<span>&#8801;</span></button>
+      <button class="keys" data-control="ripple-delete">RIPL<br>DEL</button>
+    </div>
+
+    <!-- SOURCE / TIMELINE -->
+    <div class="source-timeline">
+      <button class="keys" data-control="source">SOURCE</button>
+      <button class="keys" data-control="timeline">TIMELINE</button>
+    </div>
+
+    <!-- SHTL / JOG / SCRL -->
+    <div class="shuttle">
+      <button class="keys small-white" data-control="shuttle">SHTL</button>
+      <button class="keys small-white" data-control="jog">JOG</button>
+      <button class="keys small-white" data-control="scroll">SCRL</button>
+    </div>
+
+    <!-- Trim / edit-point cluster: IN/OUT + 3x3 -->
+    <div class="trim-cluster">
+      <button class="keys light in-key" data-control="in">IN<span>CLR</span></button>
+      <button class="keys light out-key" data-control="out">OUT<span>CLR</span></button>
+
+      <button class="keys cA row2" data-control="trim-in">TRIM<br>IN</button>
+      <button class="keys cB row2" data-control="trim-out">TRIM<br>OUT</button>
+      <button class="keys cC row2" data-control="roll">ROLL<span>SLIDE</span></button>
+
+      <button class="keys cA row3" data-control="slip-src">SLIP<br>SRC</button>
+      <button class="keys cB row3" data-control="slip-dest">SLIP<br>DEST</button>
+      <button class="keys cC row3" data-control="trans-dur">TRANS<br>DUR<span>SET</span></button>
+
+      <button class="keys cA row4" data-control="cut">CUT</button>
+      <button class="keys cB row4" data-control="dis">DIS</button>
+      <button class="keys cC row4" data-control="smooth-cut">SMTH<br>CUT</button>
+    </div>
+
+    <!-- CAM cluster (4x3) + STOP/PLAY bar -->
+    <div class="cam-cluster">
+      <button class="keys" data-control="cam-7">CAM<br>7</button>
+      <button class="keys" data-control="cam-8">CAM<br>8</button>
+      <button class="keys" data-control="cam-9">CAM<br>9</button>
+      <button class="keys" data-control="live-owr">LIVE<br>O/WR</button>
+
+      <button class="keys" data-control="cam-4">CAM<br>4</button>
+      <button class="keys" data-control="cam-5">CAM<br>5</button>
+      <button class="keys" data-control="cam-6">CAM<br>6</button>
+      <button class="keys" data-control="video-only">VIDEO<br>ONLY<span>RND</span></button>
+
+      <button class="keys" data-control="cam-1">CAM<br>1</button>
+      <button class="keys" data-control="cam-2">CAM<br>2</button>
+      <button class="keys" data-control="cam-3">CAM<br>3</button>
+      <button class="keys" data-control="audio-only">AUDIO<br>ONLY</button>
+
+      <button class="keys stop-play" data-control="stop-play">STOP/PLAY</button>
+    </div>
+
+    <!-- Jog wheel -->
+    <div class="jog" id="jog" title="Jog wheel"></div>
+
+  </div>
+
+  <div class="annotation">
+    Interactive visual reconstruction of the Blackmagic DaVinci Resolve Speed Editor.
+    Buttons expose <code>data-control</code> identifiers intended as mapping targets.
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll(".keys").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".keys.selected").forEach(el => el.classList.remove("selected"));
+      button.classList.add("selected");
+      console.log("Selected control:", button.dataset.control);
+    });
+  });
+
+  // Basic wheel interaction placeholder.
+  // Replace this with real HID events / Tauri IPC later.
+  const jog = document.getElementById("jog");
+  let angle = 0;
+  jog.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    angle += event.deltaY > 0 ? 8 : -8;
+    jog.style.transform = `rotate(${angle}deg)`;
+    console.log("Jog:", event.deltaY > 0 ? "clockwise" : "counter-clockwise");
+  }, { passive: false });
+</script>
+</body>
+</html>

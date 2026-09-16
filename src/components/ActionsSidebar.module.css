@@ -1,0 +1,85 @@
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--panel-border);
+  padding: 12px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.heading {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.category {
+  margin-bottom: 16px;
+}
+
+.category h3 {
+  font-size: 12px;
+  margin: 0 0 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.subheading {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 8px 0 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-alt);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  cursor: grab;
+}
+
+.item:hover {
+  border-color: var(--accent);
+}
+
+.grip {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.customItem {
+  font-size: 12px;
+  color: var(--accent);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.comingSoon {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.connected {
+  color: var(--ok);
+}
+
+.connecting {
+  color: var(--warn);
+}
+
+.error {
+  color: var(--red);
+}
+
+.disconnected {
+  color: var(--muted);
+}

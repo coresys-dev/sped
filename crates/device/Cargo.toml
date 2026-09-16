@@ -1,0 +1,14 @@
+[package]
+name = "sped-device"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Device abstraction and normalized event model for the Blackmagic Speed Editor control surface"
+
+[dependencies]
+bmd-speededitor = "0.2"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+tracing = "0.1"
+
+[dev-dependencies]
