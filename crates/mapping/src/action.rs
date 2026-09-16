@@ -23,14 +23,174 @@ pub struct KeyboardAction {
 /// OBS WebSocket actions. Scene/source names are never hard-coded by the
 /// application -- they are picked by the user from data retrieved live
 /// from OBS (see `sped-integrations::obs`).
+///
+/// Each family is a single variant with a `mode` rather than one variant
+/// per operation, so the sidebar can offer one draggable action per family
+/// (e.g. "Recording Control") that's reconfigured afterwards instead of
+/// re-dragged. `source`/`scene` fields are `""` when not yet configured;
+/// execution fails cleanly rather than panicking on an empty value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum ObsAction {
     SwitchScene { scene: String },
-    StartRecording,
-    StopRecording,
-    PauseRecording,
-    ResumeRecording,
-    StartStreaming,
-    StopStreaming,
+    Recording { mode: RecordingMode },
+    Streaming { mode: StartStopToggle },
+    VirtualCam { mode: StartStopToggle },
+    StudioMode { mode: StudioModeMode },
+    SourceMute { source: String, mode: MuteMode },
+    SourceVisibility { scene: String, source: String, mode: VisibilityMode },
+    SourceVolume { source: String, mode: VolumeMode },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordingMode {
+    Start,
+    Stop,
+    Pause,
+    Resume,
+    Toggle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StartStopToggle {
+    Start,
+    Stop,
+    Toggle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StudioModeMode {
+    Enable,
+    Disable,
+    Toggle,
+    TriggerTransition,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MuteMode {
+    Mute,
+    Unmute,
+    Toggle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VisibilityMode {
+    Show,
+    Hide,
+    Toggle,
+}
+
+/// `percent`/`delta_percent` are plain percentages (100.0 = unity gain),
+/// converted to `obws`'s linear `mul` at the execution boundary
+/// (`sped-integrations::obs`) -- never stored as `mul` so the UI can show
+/// a human percentage directly.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum VolumeMode {
+    Absolute { percent: f32 },
+    Relative { delta_percent: f32 },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn round_trips(action: &ObsAction) {
+        let json = serde_json::to_string(action).unwrap();
+        let restored: ObsAction = serde_json::from_str(&json).unwrap();
+        assert_eq!(&restored, action);
+    }
+
+    #[test]
+    fn switch_scene_round_trips() {
+        round_trips(&ObsAction::SwitchScene { scene: "Main".into() });
+    }
+
+    #[test]
+    fn recording_round_trips_every_mode() {
+        for mode in [
+            RecordingMode::Start,
+            RecordingMode::Stop,
+            RecordingMode::Pause,
+            RecordingMode::Resume,
+            RecordingMode::Toggle,
+        ] {
+            round_trips(&ObsAction::Recording { mode });
+        }
+    }
+
+    #[test]
+    fn streaming_round_trips_every_mode() {
+        for mode in [StartStopToggle::Start, StartStopToggle::Stop, StartStopToggle::Toggle] {
+            round_trips(&ObsAction::Streaming { mode });
+        }
+    }
+
+    #[test]
+    fn virtual_cam_round_trips_every_mode() {
+        for mode in [StartStopToggle::Start, StartStopToggle::Stop, StartStopToggle::Toggle] {
+            round_trips(&ObsAction::VirtualCam { mode });
+        }
+    }
+
+    #[test]
+    fn studio_mode_round_trips_every_mode() {
+        for mode in [
+            StudioModeMode::Enable,
+            StudioModeMode::Disable,
+            StudioModeMode::Toggle,
+            StudioModeMode::TriggerTransition,
+        ] {
+            round_trips(&ObsAction::StudioMode { mode });
+        }
+    }
+
+    #[test]
+    fn source_mute_round_trips_every_mode() {
+        for mode in [MuteMode::Mute, MuteMode::Unmute, MuteMode::Toggle] {
+            round_trips(&ObsAction::SourceMute { source: "Mic".into(), mode });
+        }
+    }
+
+    #[test]
+    fn source_visibility_round_trips_every_mode() {
+        for mode in [VisibilityMode::Show, VisibilityMode::Hide, VisibilityMode::Toggle] {
+            round_trips(&ObsAction::SourceVisibility {
+                scene: "Main".into(),
+                source: "Webcam".into(),
+                mode,
+            });
+        }
+    }
+
+    #[test]
+    fn source_volume_round_trips_absolute_and_relative() {
+        round_trips(&ObsAction::SourceVolume {
+            source: "Mic".into(),
+            mode: VolumeMode::Absolute { percent: 75.0 },
+        });
+        round_trips(&ObsAction::SourceVolume {
+            source: "Mic".into(),
+            mode: VolumeMode::Relative { delta_percent: -10.0 },
+        });
+    }
+
+    #[test]
+    fn op_tag_is_snake_case() {
+        let json = serde_json::to_string(&ObsAction::VirtualCam { mode: StartStopToggle::Toggle })
+            .unwrap();
+        assert!(json.contains(r#""op":"virtual_cam""#));
+        assert!(json.contains(r#""mode":"toggle""#));
+
+        let json = serde_json::to_string(&ObsAction::StudioMode {
+            mode: StudioModeMode::TriggerTransition,
+        })
+        .unwrap();
+        assert!(json.contains(r#""mode":"trigger_transition""#));
+    }
 }

@@ -11,7 +11,10 @@ mod modifier;
 mod profile;
 mod trigger;
 
-pub use action::{Action, KeyboardAction, ObsAction};
+pub use action::{
+    Action, KeyboardAction, MuteMode, ObsAction, RecordingMode, StartStopToggle, StudioModeMode,
+    VisibilityMode, VolumeMode,
+};
 pub use dispatch::Dispatcher;
 pub use engine::MappingEngine;
 pub use executor::{ActionError, ActionExecutor};

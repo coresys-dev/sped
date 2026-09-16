@@ -114,7 +114,9 @@ mod tests {
     #[test]
     fn multiple_actions_execute_in_declared_order() {
         let mut profile = Profile::new("Test");
-        let second = Action::Obs(crate::action::ObsAction::StartRecording);
+        let second = Action::Obs(crate::action::ObsAction::Recording {
+            mode: crate::action::RecordingMode::Toggle,
+        });
         profile.set_mappings(
             ControlId::Cut,
             vec![Mapping::simple(vec![ctrl_b(), second.clone()])],
