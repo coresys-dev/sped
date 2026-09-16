@@ -1,6 +1,7 @@
+import { X } from "lucide-react";
 import { api } from "../api";
+import { IconButton } from "../cscl-ui/primitives/IconButton";
 import type { ControlEvent, DeviceStatus } from "../types";
-import styles from "./DevPanel.module.css";
 
 export interface DevPanelProps {
   deviceStatus: DeviceStatus | null;
@@ -8,7 +9,7 @@ export interface DevPanelProps {
   onClose: () => void;
 }
 
-const MOCK_CONTROLS = ["cut", "cam-1", "stop-play"];
+const MOCK_CONTROLS = ["cut", "cam-1", "cam-2", "cam-3", "stop-play"];
 
 function describe(event: ControlEvent): string {
   switch (event.type) {
@@ -31,37 +32,52 @@ export function DevPanel({ deviceStatus, log, onClose }: DevPanelProps) {
   const mockActive = deviceStatus?.mock ?? false;
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.header}>
+    <div className="animate-chrome-in fixed right-4 bottom-4 z-40 flex max-h-[22rem] w-80 flex-col overflow-hidden rounded-lg border border-border bg-surface font-mono shadow-float">
+      <div className="flex items-center justify-between border-b border-border px-2.5 py-1.5 text-[11px] tracking-wide text-text-muted uppercase">
         <span>Speed Editor Events</span>
-        <button type="button" onClick={onClose}>
-          ×
-        </button>
+        <IconButton aria-label="Close event log" variant="ghost" size="sm" onClick={onClose}>
+          <X className="h-3.5 w-3.5" />
+        </IconButton>
       </div>
 
       {mockActive ? (
-        <div className={styles.mockControls}>
+        <div className="flex flex-wrap gap-1 border-b border-border p-2">
           {MOCK_CONTROLS.map((id) => (
-            <button key={id} type="button" onClick={() => api.mockSend({ action: "tap", value: id })}>
+            <button
+              key={id}
+              type="button"
+              className="rounded border border-border bg-surface-raised px-1.5 py-1 text-[10px] text-text hover:border-accent"
+              onClick={() => api.mockSend({ action: "tap", value: id })}
+            >
               [ {id.toUpperCase()} ]
             </button>
           ))}
-          <button type="button" onClick={() => api.mockSend({ action: "jog", value: 1 })}>
+          <button
+            type="button"
+            className="rounded border border-border bg-surface-raised px-1.5 py-1 text-[10px] text-text hover:border-accent"
+            onClick={() => api.mockSend({ action: "jog", value: 1 })}
+          >
             [ JOG + ]
           </button>
-          <button type="button" onClick={() => api.mockSend({ action: "jog", value: -1 })}>
+          <button
+            type="button"
+            className="rounded border border-border bg-surface-raised px-1.5 py-1 text-[10px] text-text hover:border-accent"
+            onClick={() => api.mockSend({ action: "jog", value: -1 })}
+          >
             [ JOG - ]
           </button>
         </div>
       ) : (
-        <div className={styles.hint}>Set SPED_MOCK=1 and restart to enable mock controls.</div>
+        <div className="border-b border-border p-2 text-[10px] text-text-muted">
+          Set SPED_MOCK=1 and restart to enable mock controls.
+        </div>
       )}
 
-      <div className={styles.log}>
+      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-1.5 text-[11px]">
         {log.map((entry, i) => (
-          <div key={i} className={styles.logRow}>
-            <span className={styles.time}>{entry.time}</span>
-            <span>{describe(entry.event)}</span>
+          <div key={i} className="flex gap-2 py-0.5">
+            <span className="text-text-muted">{entry.time}</span>
+            <span className="text-text">{describe(entry.event)}</span>
           </div>
         ))}
       </div>

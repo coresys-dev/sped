@@ -3,18 +3,30 @@ import { api, onDeviceEvent } from "./api";
 import { ActionsSidebar } from "./components/ActionsSidebar";
 import { DevPanel } from "./components/DevPanel";
 import { Header } from "./components/Header";
-import { ObsSettingsModal } from "./components/ObsSettingsModal";
 import { PropertiesPanel } from "./components/PropertiesPanel";
+import { SettingsModal } from "./components/SettingsModal";
 import { SpeedEditor } from "./components/SpeedEditor";
-import type { Action, ControlEvent, ControlId, DeviceStatus, Mapping, ObsStatus, Profile } from "./types";
-import "./App.css";
+import { TitleBar } from "./cscl-ui/window/TitleBar";
+import type {
+  Action,
+  ControlEvent,
+  ControlId,
+  DeviceStatus,
+  Mapping,
+  ObsStatus,
+  Profile,
+} from "./types";
 
 const DEV_MODE = import.meta.env.DEV;
+/** Degrees of visual rotation per unit of (sensitivity-scaled) jog delta.
+ * Purely a feel constant for the visualizer, not a hardware value. */
+const DEGREES_PER_JOG_UNIT = 6;
 
 export default function App() {
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | null>(null);
   const [pressed, setPressed] = useState<Set<ControlId>>(new Set());
-  const [jogSpinning, setJogSpinning] = useState(false);
+  const [jogAngle, setJogAngle] = useState(0);
+  const [jogActive, setJogActive] = useState(false);
 
   const [profiles, setProfiles] = useState<string[]>([]);
   const [activeProfileName, setActiveProfileName] = useState<string>("");
@@ -22,7 +34,7 @@ export default function App() {
 
   const [selected, setSelected] = useState<ControlId | null>(null);
   const [obsStatus, setObsStatus] = useState<ObsStatus>({ state: "disconnected" });
-  const [obsModalOpen, setObsModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [addKeyboardRequested, setAddKeyboardRequested] = useState(false);
 
   const [devPanelOpen, setDevPanelOpen] = useState(DEV_MODE);
@@ -41,6 +53,10 @@ export default function App() {
 
   useEffect(() => {
     api.getDeviceStatus().then(setDeviceStatus).catch(() => {});
+    api
+      .getSettings()
+      .then((s) => setDevPanelOpen((open) => open || s.general.debugOverlay))
+      .catch(() => {});
     refreshProfiles();
 
     let jogTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -69,10 +85,16 @@ export default function App() {
           });
           break;
         case "jog":
-        case "shuttle":
-          setJogSpinning(true);
+          setJogAngle((a) => a + event.delta * DEGREES_PER_JOG_UNIT);
+          setJogActive(true);
           if (jogTimeout) clearTimeout(jogTimeout);
-          jogTimeout = setTimeout(() => setJogSpinning(false), 200);
+          jogTimeout = setTimeout(() => setJogActive(false), 250);
+          break;
+        case "shuttle":
+          setJogAngle((a) => a + event.value * DEGREES_PER_JOG_UNIT * 0.2);
+          setJogActive(true);
+          if (jogTimeout) clearTimeout(jogTimeout);
+          jogTimeout = setTimeout(() => setJogActive(false), 250);
           break;
       }
     });
@@ -157,10 +179,11 @@ export default function App() {
   );
 
   return (
-    <div className="app">
+    <div className="flex h-screen flex-col bg-bg">
+      <TitleBar />
+
       <Header
         deviceStatus={deviceStatus}
-        onOpenObsSettings={() => setObsModalOpen(true)}
         profileManager={{
           profiles,
           activeProfile: activeProfileName,
@@ -204,20 +227,22 @@ export default function App() {
         }}
       />
 
-      <div className="body">
+      <div className="flex min-h-0 flex-1 gap-3 p-3">
         <ActionsSidebar
           obsStatus={obsStatus}
           onCustomKeyboard={() => {
             if (selected) setAddKeyboardRequested(true);
           }}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
-        <main className="center">
+        <main className="flex min-w-0 flex-1 items-center justify-center overflow-auto">
           <SpeedEditor
             selected={selected}
             pressed={pressed}
             assigned={assignedControls}
-            jogSpinning={jogSpinning}
+            jogAngle={jogAngle}
+            jogActive={jogActive}
             onSelect={setSelected}
             onDropAction={handleDropAction}
           />
@@ -233,12 +258,12 @@ export default function App() {
         />
       </div>
 
-      {obsModalOpen && (
-        <ObsSettingsModal
-          status={obsStatus}
-          onConnect={(host, port, password) => api.obsConnect(host, port, password)}
-          onDisconnect={() => api.obsDisconnect()}
-          onClose={() => setObsModalOpen(false)}
+      {settingsOpen && (
+        <SettingsModal
+          obsStatus={obsStatus}
+          onObsConnect={(host, port, password) => api.obsConnect(host, port, password)}
+          onObsDisconnect={() => api.obsDisconnect()}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
 

@@ -1,13 +1,23 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  padding: 28px;
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-surface, #0a0a0a);
+  border: 1px solid var(--color-border, #1f1f1f);
+  box-shadow: var(--shadow-float, 0 24px 48px -12px rgba(0, 0, 0, 0.65));
+}
+
 .device {
   position: relative;
   width: 100%;
-  max-width: 900px;
   aspect-ratio: 1.4216 / 1;
-  min-height: 320px;
-  border-radius: 22px;
+  min-height: 300px;
+  border-radius: 20px;
   background: linear-gradient(145deg, #414348, #2e3034 70%);
-  border: 2px solid var(--device-edge);
-  box-shadow: 0 35px 80px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+  border: 2px solid #25272a;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08);
   overflow: hidden;
   user-select: none;
 }
@@ -39,9 +49,9 @@
 .key {
   position: relative;
   border-radius: 7px;
-  background: linear-gradient(145deg, var(--button-hover), var(--button));
+  background: linear-gradient(145deg, #292b2f, #1d1f21);
   border: 1px solid #111214;
-  color: var(--text);
+  color: #e8e8e8;
   display: grid;
   place-items: center;
   text-align: center;
@@ -51,7 +61,11 @@
   letter-spacing: 0.015em;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.08s, background 0.12s, box-shadow 0.12s, outline-color 0.12s;
+  transition:
+    transform 90ms var(--ease-in-out-quart, ease),
+    background 120ms,
+    box-shadow 120ms,
+    outline-color 120ms;
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 2px 2px rgba(0, 0, 0, 0.3);
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -60,23 +74,25 @@
 .key .sub {
   display: block;
   font-size: 0.68em;
-  color: var(--muted);
+  color: #8c8d90;
   margin-top: 3px;
   font-weight: 500;
 }
 
 .key:hover {
   background: #303237;
-  box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.35), inset 0 1px rgba(255, 255, 255, 0.05);
 }
 
+.key:active,
 .key.pressed {
-  transform: translateY(1px);
-  background: linear-gradient(145deg, #26282c, #1a1c1e);
+  transform: translateY(1.5px) scale(0.97);
+  background: linear-gradient(145deg, #201f2e, #17161f);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.03), 0 0 0 1px var(--color-accent, #7c5cff) inset,
+    0 1px 1px rgba(0, 0, 0, 0.3);
 }
 
 .key.selected {
-  outline-color: var(--accent);
+  outline-color: var(--color-accent, #7c5cff);
 }
 
 .key.assigned::after {
@@ -87,21 +103,26 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--color-accent, #7c5cff);
 }
 
 .key.dropTarget {
-  background: #2a2440;
-  box-shadow: 0 0 0 2px var(--accent), inset 0 1px rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--color-accent, #7c5cff) 18%, #1d1f21);
+  box-shadow: 0 0 0 2px var(--color-accent, #7c5cff), inset 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .key.light {
   background: linear-gradient(145deg, #eeece2, #d2d1c9);
-  color: var(--white-text);
+  color: #242424;
 }
 
 .key.light .sub {
   color: #77766f;
+}
+
+.key.light:active,
+.key.light.pressed {
+  background: linear-gradient(145deg, #cfcdc2, #b7b6ac);
 }
 
 .key.red {
@@ -195,7 +216,7 @@
   gap: 6px;
 }
 
-.jog {
+.jogOuter {
   position: absolute;
   left: 73.7%;
   top: 48%;
@@ -212,10 +233,23 @@
   border: 2px solid #17181a;
   box-shadow: inset 0 0 0 5px #25272a, 0 5px 12px rgba(0, 0, 0, 0.45);
   cursor: ns-resize;
+  display: grid;
+  place-items: center;
 }
 
-.jog::after {
-  content: "";
+.jogOuter.active {
+  box-shadow: inset 0 0 0 5px var(--color-accent, #7c5cff), 0 5px 12px rgba(0, 0, 0, 0.45);
+}
+
+.jogFace {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transition: transform 80ms linear;
+}
+
+.jogNotch {
   position: absolute;
   width: 17%;
   height: 17%;
@@ -226,8 +260,8 @@
   box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.07);
 }
 
-.jog.spinning {
-  box-shadow: inset 0 0 0 5px var(--accent), 0 5px 12px rgba(0, 0, 0, 0.45);
+.jogOuter.active .jogNotch {
+  background: var(--color-accent, #7c5cff);
 }
 
 .shuttleRow {

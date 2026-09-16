@@ -1,8 +1,22 @@
+use crate::settings::AppSettings;
 use crate::state::AppState;
 use sped_device::{mock_surface, ControlEvent, ControlSurface, SpeedEditorSurface};
 use std::sync::mpsc;
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
+
+fn apply_jog_settings(event: &mut ControlEvent, settings: &AppSettings) {
+    let sign = if settings.jog.invert { -1.0 } else { 1.0 };
+    match event {
+        ControlEvent::Jog { delta } => {
+            *delta = (*delta as f32 * settings.jog.sensitivity * sign).round() as i32;
+        }
+        ControlEvent::Shuttle { value } => {
+            *value = (*value as f32 * settings.jog.sensitivity * sign).round() as i32;
+        }
+        _ => {}
+    }
+}
 
 /// Starts the background device thread. Reads `SPED_MOCK=1` to run the
 /// [`sped_device::MockSurface`] instead of the real hardware, so the
@@ -27,13 +41,19 @@ pub fn spawn(app: AppHandle) {
         let processor_app = app.clone();
 
         let processor = thread::spawn(move || {
-            for event in rx {
+            for mut event in rx {
                 if let Some(state) = processor_app.try_state::<AppState>() {
                     match &event {
                         ControlEvent::Connected => *state.connected.lock().unwrap() = true,
                         ControlEvent::Disconnected => *state.connected.lock().unwrap() = false,
                         _ => {}
                     }
+
+                    // Jog/shuttle sensitivity is a user preference with no
+                    // hardware-level equivalent, so it's applied here, once,
+                    // rather than duplicated in every consumer (frontend
+                    // rotation, and eventually wheel-driven actions).
+                    apply_jog_settings(&mut event, &state.settings.get());
 
                     let actions = state.engine.lock().unwrap().handle_event(&event);
                     if !actions.is_empty() {

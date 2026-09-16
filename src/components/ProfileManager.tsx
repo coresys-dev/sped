@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import styles from "./ProfileManager.module.css";
+import { useRef } from "react";
+import { DropdownMenu } from "../cscl-ui/overlays/DropdownMenu";
 
 export interface ProfileManagerProps {
   profiles: string[];
@@ -24,13 +24,12 @@ export function ProfileManager({
   onExport,
   onImport,
 }: ProfileManagerProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   return (
-    <div className={styles.wrap}>
+    <div className="flex items-center gap-1">
       <select
-        className={styles.select}
+        className="rounded-md border border-border bg-surface-raised px-2 py-1.5 text-xs text-text"
         value={activeProfile}
         onChange={(e) => onSelect(e.target.value)}
       >
@@ -41,87 +40,53 @@ export function ProfileManager({
         ))}
       </select>
 
-      <button
-        type="button"
-        className={styles.menuButton}
-        onClick={() => setMenuOpen((v) => !v)}
-        aria-label="Profile actions"
-      >
-        ⋯
-      </button>
-
-      {menuOpen && (
-        <div className={styles.menu} onMouseLeave={() => setMenuOpen(false)}>
-          <button
-            type="button"
-            onClick={() => {
+      <DropdownMenu
+        triggerLabel="Profile actions"
+        expandDirection="left"
+        items={[
+          {
+            label: "New profile",
+            onClick: () => {
               const name = window.prompt("New profile name?");
               if (name) onCreate(name);
-              setMenuOpen(false);
-            }}
-          >
-            New profile
-          </button>
-          <button
-            type="button"
-            onClick={() => {
+            },
+          },
+          {
+            label: "Duplicate",
+            onClick: () => {
               const name = window.prompt("Duplicate as?", `${activeProfile} copy`);
               if (name) onDuplicate(name);
-              setMenuOpen(false);
-            }}
-          >
-            Duplicate
-          </button>
-          <button
-            type="button"
-            onClick={() => {
+            },
+          },
+          {
+            label: "Rename",
+            onClick: () => {
               const name = window.prompt("Rename profile to?", activeProfile);
               if (name) onRename(name);
-              setMenuOpen(false);
-            }}
-          >
-            Rename
-          </button>
-          <button
-            type="button"
-            onClick={() => {
+            },
+          },
+          {
+            label: "Delete",
+            onClick: () => {
               if (window.confirm(`Delete profile "${activeProfile}"?`)) onDelete();
-              setMenuOpen(false);
-            }}
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onExport();
-              setMenuOpen(false);
-            }}
-          >
-            Export…
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              fileInput.current?.click();
-              setMenuOpen(false);
-            }}
-          >
-            Import…
-          </button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="application/json"
-            className={styles.hiddenInput}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (file) onImport(await file.text());
-              e.target.value = "";
-            }}
-          />
-        </div>
-      )}
+            },
+          },
+          { label: "Export…", onClick: onExport },
+          { label: "Import…", onClick: () => fileInput.current?.click() },
+        ]}
+      />
+
+      <input
+        ref={fileInput}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (file) onImport(await file.text());
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }

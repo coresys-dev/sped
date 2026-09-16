@@ -1,6 +1,8 @@
 mod commands;
 mod device_manager;
+mod settings;
 mod state;
+mod window_chrome;
 
 use state::AppState;
 use tauri::Manager;
@@ -12,8 +14,16 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let profiles_dir = app.path().app_data_dir()?.join("profiles");
-            app.manage(AppState::new(profiles_dir));
+            let app_data_dir = app.path().app_data_dir()?;
+            let state = AppState::new(app_data_dir);
+
+            let settings = state.settings.get();
+            if settings.obs.autoconnect {
+                let password = settings::get_obs_password();
+                state.obs.connect(settings.obs.host, settings.obs.port, password);
+            }
+
+            app.manage(state);
             device_manager::spawn(app.handle().clone());
             Ok(())
         })
@@ -36,6 +46,12 @@ pub fn run() {
             commands::obs_disconnect,
             commands::obs_status,
             commands::mock_send,
+            commands::get_settings,
+            commands::set_settings,
+            commands::set_obs_password,
+            commands::clear_obs_password,
+            commands::has_obs_password,
+            window_chrome::position_traffic_lights,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

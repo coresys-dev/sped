@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { ControlEvent, DeviceStatus, Mapping, MockCommand, ObsStatus, Profile } from "./types";
+import type {
+  AppSettings,
+  ControlEvent,
+  DeviceStatus,
+  Mapping,
+  MockCommand,
+  ObsStatus,
+  Profile,
+} from "./types";
 
 export const api = {
   getControls: () => invoke<string[]>("get_controls"),
@@ -29,6 +37,12 @@ export const api = {
   obsStatus: () => invoke<ObsStatus>("obs_status"),
 
   mockSend: (command: MockCommand) => invoke<void>("mock_send", { command }),
+
+  getSettings: () => invoke<AppSettings>("get_settings"),
+  setSettings: (settings: AppSettings) => invoke<void>("set_settings", { settings }),
+  setObsPassword: (password: string) => invoke<void>("set_obs_password", { password }),
+  clearObsPassword: () => invoke<void>("clear_obs_password"),
+  hasObsPassword: () => invoke<boolean>("has_obs_password"),
 };
 
 export function onDeviceEvent(handler: (event: ControlEvent) => void): Promise<UnlistenFn> {

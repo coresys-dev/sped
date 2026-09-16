@@ -1,0 +1,114 @@
+/* Shared animation keyframes — import once alongside theme/tokens.css.
+ * One easing curve (--ease-in-out-quart, defined in tokens.css), one small
+ * set of durations. Consistency of motion across CoreSys apps matters more
+ * than variety — don't add a one-off easing/duration for a single component. */
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-modal-in {
+  animation: modal-in 200ms var(--ease-in-out-quart);
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-overlay-in {
+  animation: overlay-in 200ms var(--ease-in-out-quart);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-toast-in {
+  animation: toast-in 220ms var(--ease-in-out-quart);
+}
+
+/* Element-by-element entrance (list rows, nav items) — apply once per
+ * element with an inline `animation-delay` for the stagger, not separate
+ * keyframes per index. `both` keeps it invisible before its turn and frozen
+ * at rest once done. */
+@keyframes item-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-item-in {
+  animation: item-in 320ms var(--ease-in-out-quart) both;
+}
+
+/* Floating chrome island reveal (window controls, a title bar) — a small
+ * drop-and-settle, distinct from the plainer item-in used for list rows. */
+@keyframes chrome-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-chrome-in {
+  animation: chrome-in 420ms var(--ease-in-out-quart) both;
+}
+
+/* Reveals a whole element's body (border/fill/shadow) growing outward from
+ * its own center via clip-path, rather than content appearing inside an
+ * already-visible box. Duration is driven from JS (element-specific), so
+ * only the name/timing-function/fill-mode are set here. */
+@keyframes reveal-mask {
+  from {
+    clip-path: inset(0 50% 0 50% round 0.5rem);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 0.5rem);
+  }
+}
+.animate-reveal-mask {
+  animation-name: reveal-mask;
+  animation-timing-function: var(--ease-in-out-quart);
+  animation-fill-mode: both;
+}
+
+/* Quick scale "pop" for a state going from off to on (e.g. a favorite/star
+ * toggle) — trigger only on the false→true transition, never on initial
+ * mount of an already-active element. */
+@keyframes favorite-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.animate-favorite-pop {
+  animation: favorite-pop 260ms var(--ease-in-out-quart);
+}

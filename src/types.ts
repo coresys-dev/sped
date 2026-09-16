@@ -72,6 +72,53 @@ export interface DeviceStatus {
   mock: boolean;
 }
 
+export interface ObsSettings {
+  host: string;
+  port: number;
+  autoconnect: boolean;
+}
+
+export interface JogSettings {
+  sensitivity: number;
+  invert: boolean;
+}
+
+export interface GeneralSettings {
+  debugOverlay: boolean;
+}
+
+export interface AppSettings {
+  obs: ObsSettings;
+  jog: JogSettings;
+  general: GeneralSettings;
+}
+
+const COMBO_TOKEN_TO_NORMALIZED: Record<string, string> = {
+  Ctrl: "CTRL",
+  Alt: "ALT",
+  Shift: "SHIFT",
+  Super: "META",
+};
+
+/** `ShortcutRecorder` (cscl-ui) produces "Ctrl+Shift+K"-style combo
+ * strings; our stored `KeyboardAction.keys` is a normalized array
+ * (`["CTRL", "SHIFT", "K"]`). Converting at the UI boundary keeps the
+ * profile format independent of that component's display convention. */
+export function comboStringToKeys(combo: string): string[] {
+  return combo.split("+").map((token) => COMBO_TOKEN_TO_NORMALIZED[token] ?? token.toUpperCase());
+}
+
+const NORMALIZED_TO_COMBO_TOKEN: Record<string, string> = {
+  CTRL: "Ctrl",
+  ALT: "Alt",
+  SHIFT: "Shift",
+  META: "Super",
+};
+
+export function keysToComboString(keys: string[]): string {
+  return keys.map((key) => NORMALIZED_TO_COMBO_TOKEN[key] ?? key).join("+");
+}
+
 export function keyboardAction(keys: string[]): KeyboardAction {
   return { kind: "keyboard", keys };
 }

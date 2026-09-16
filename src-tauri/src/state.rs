@@ -1,3 +1,4 @@
+use crate::settings::SettingsStore;
 use sped_device::MockHandle;
 use sped_integrations::{KeyboardExecutor, ObsIntegration};
 use sped_mapping::{Action, ActionError, ActionExecutor, Dispatcher, MappingEngine, Profile, ProfileError};
@@ -16,6 +17,7 @@ pub struct AppState {
     pub active_profile: Mutex<String>,
     pub profiles_dir: PathBuf,
     pub connected: Mutex<bool>,
+    pub settings: SettingsStore,
 }
 
 /// Adapts `Arc<ObsIntegration>` (needed directly by the OBS commands) to
@@ -30,8 +32,10 @@ impl ActionExecutor for ObsExecutorHandle {
 }
 
 impl AppState {
-    pub fn new(profiles_dir: PathBuf) -> Self {
+    pub fn new(app_data_dir: PathBuf) -> Self {
+        let profiles_dir = app_data_dir.join("profiles");
         let _ = std::fs::create_dir_all(&profiles_dir);
+        let settings = SettingsStore::load(&app_data_dir);
 
         let mut profiles = load_profiles(&profiles_dir);
         if profiles.is_empty() {
@@ -65,6 +69,7 @@ impl AppState {
             active_profile: Mutex::new(active_name),
             profiles_dir,
             connected: Mutex::new(false),
+            settings,
         }
     }
 

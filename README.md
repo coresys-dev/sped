@@ -54,6 +54,22 @@ pnpm tauri build
 cargo test --workspace
 ```
 
+## UI system
+
+The frontend uses Tailwind v4 (`@tailwindcss/vite`) plus `src/cscl-ui/` --
+CoreSys's internal shadcn-ui-style component library, vendored in per its own
+copy-and-own convention (see `src/cscl-ui/README.md`): window chrome
+(`TitleBar`/`WindowControls`, fully custom on Windows/Linux via
+`decorations: false`), design tokens (`theme/tokens.css`, `theme/motion.css`),
+and primitives/overlays (`Button`, `IconButton`, `Switch`, `Slider`,
+`ShortcutRecorder`, `DropdownMenu`, `SidebarTabsDialog`, ...). `ShortcutRecorder`
+is intentionally patched from upstream to allow modifier-less combos (e.g.
+`Space`) -- see the comment in `src/cscl-ui/inputs/ShortcutRecorder.tsx`.
+macOS native-traffic-light repositioning (`position_traffic_lights` in
+`src-tauri/src/window_chrome.rs`) is a documented no-op: implementing it needs
+Cocoa/objc code from CoreSys's other apps that isn't available here, and this
+project has only been built/tested on Windows.
+
 ## Architecture
 
 ```text
@@ -153,10 +169,14 @@ The Speed Editor authentication algorithm implemented inside
   the engine only currently resolves `Press`/`Release`.
 - No LED/key feedback (software state -> device) yet; `bmd-speededitor`
   exposes the primitives (`KeyLed`, `set_key_led`) for when this is tackled.
-- Wheel sensitivity/acceleration curves are not implemented; jog/shuttle
-  deltas pass through raw.
+- Wheel sensitivity/invert (Settings -> Device) scales the jog/shuttle delta
+  once in `device_manager.rs`, so it affects the visualizer's rotation now;
+  it has no effect on actions yet since the mapping engine doesn't resolve
+  `Jog`/`Shuttle` events to actions yet (no acceleration curve either).
 - Import/export currently round-trips through the browser's file
   download/upload rather than a native save/open dialog.
+- macOS native traffic-light repositioning is a documented no-op (see
+  "UI system" above) -- untested, not implemented, Windows/Linux only for now.
 
 ## TODO / future work
 

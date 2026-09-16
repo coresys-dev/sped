@@ -1,3 +1,4 @@
+use crate::settings::{self, AppSettings};
 use crate::state::AppState;
 use serde::Serialize;
 use sped_device::{ControlId, MockCommand};
@@ -227,4 +228,29 @@ pub fn mock_send(state: State<AppState>, command: MockCommand) -> Result<(), Str
         }
         None => Err("mock mode is not active (set SPED_MOCK=1 and restart)".into()),
     }
+}
+
+#[tauri::command]
+pub fn get_settings(state: State<AppState>) -> AppSettings {
+    state.settings.get()
+}
+
+#[tauri::command]
+pub fn set_settings(state: State<AppState>, settings: AppSettings) -> Result<(), String> {
+    state.settings.update(settings)
+}
+
+#[tauri::command]
+pub fn set_obs_password(password: String) -> Result<(), String> {
+    settings::set_obs_password(&password)
+}
+
+#[tauri::command]
+pub fn clear_obs_password() -> Result<(), String> {
+    settings::clear_obs_password()
+}
+
+#[tauri::command]
+pub fn has_obs_password() -> bool {
+    settings::get_obs_password().is_some()
 }

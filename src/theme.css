@@ -1,42 +1,48 @@
-:root {
-  --body: #101114;
-  --device: #34363a;
-  --device-edge: #25272a;
-  --button: #1d1f21;
-  --button-hover: #292b2f;
-  --white-key: #deddd4;
-  --white-text: #242424;
-  --text: #e8e8e8;
-  --muted: #8c8d90;
-  --red: #c94f4c;
-  --accent: #7c5cff;
-  --panel: #17181b;
-  --panel-alt: #1c1e22;
-  --panel-border: #26282c;
-  --sidebar-bg: #131417;
-  --ok: #58c27d;
-  --warn: #d9a441;
-  color-scheme: dark;
-}
+@import "./cscl-ui/theme/tokens.css";
+@import "./cscl-ui/theme/motion.css";
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--body);
-  color: var(--text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px;
+/* Per-app overrides -- per cscl-ui's own convention (see
+ * cscl-ui/theme/tokens.css), only these two colors and the font are meant
+ * to change per consuming app; everything else in tokens.css stays fixed. */
+@theme {
+  --color-accent: #7c5cff;
+  --color-accent-muted: #241f47;
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button {
   font-family: inherit;
+}
+
+/* cscl-ui's DropdownMenu.tsx references these two classes but upstream
+ * motion.css doesn't define them (as of the version vendored here) --
+ * added locally, same easing/duration convention as its other animate-*
+ * helpers, matching DropdownMenu's own CLOSE_ANIM_MS (150ms). */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-menu-in {
+  animation: menu-in 150ms var(--ease-in-out-quart);
+}
+
+@keyframes menu-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+}
+.animate-menu-out {
+  animation: menu-out 150ms var(--ease-in-out-quart);
 }
