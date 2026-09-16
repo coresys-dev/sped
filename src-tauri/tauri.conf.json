@@ -14,9 +14,9 @@
       {
         "title": "Speed Editor Control",
         "width": 1280,
-        "height": 800,
-        "minWidth": 1024,
-        "minHeight": 680,
+        "height": 720,
+        "minWidth": 1000,
+        "minHeight": 640,
         "shadow": true,
         "dragDropEnabled": false
       }

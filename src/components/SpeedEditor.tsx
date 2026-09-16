@@ -157,7 +157,7 @@ function Key({
         if (payload && onDropAction) onDropAction(def.id, payload);
       }}
       className={[
-        "relative flex flex-col items-center justify-center gap-0.5 rounded-md border px-1 py-1.5 text-center text-[10px] leading-tight font-semibold tracking-wide text-text transition-all duration-150",
+        "relative flex flex-col items-center justify-center gap-0.5 rounded-md border px-1 py-1.5 text-center text-[10px] leading-tight font-medium tracking-wide text-text transition-all duration-150",
         selected
           ? "border-accent/40 bg-accent-muted text-accent"
           : isPressed

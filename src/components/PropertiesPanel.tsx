@@ -27,11 +27,11 @@ export function PropertiesPanel({ control, actions, onAddAction, onRemoveAction 
         <div className="text-xs text-text-muted">Select a control</div>
       ) : (
         <>
-          <div className="mb-4 text-base font-bold tracking-wide text-text">
+          <div className="mb-4 text-base font-semibold tracking-wide text-text">
             {controlDisplayName(control)}
           </div>
 
-          <div className="mb-2 text-[11px] font-semibold tracking-wide text-text-muted uppercase">
+          <div className="mb-2 text-xs font-medium tracking-wide text-text-muted uppercase">
             Assigned actions
           </div>
 
@@ -49,7 +49,7 @@ export function PropertiesPanel({ control, actions, onAddAction, onRemoveAction 
                   <div className="text-[10px] tracking-wide text-text-muted uppercase">
                     {actionCategory(action)}
                   </div>
-                  <div className="text-[13px] font-semibold text-text">{actionLabel(action)}</div>
+                  <div className="text-sm font-medium text-text">{actionLabel(action)}</div>
                 </div>
                 <IconButton
                   aria-label="Remove action"

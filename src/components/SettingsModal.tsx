@@ -8,7 +8,7 @@ import {
   SidebarTabsDialog,
   SidebarTabsDialogRow,
 } from "../cscl-ui/navigation/SidebarTabsDialog";
-import type { AppSettings, ObsStatus } from "../types";
+import { OBS_STATUS_COLOR, obsStatusLabel, type AppSettings, type ObsStatus } from "../types";
 
 export interface SettingsModalProps {
   obsStatus: ObsStatus;
@@ -58,7 +58,7 @@ export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClos
         <div className="flex flex-col gap-4">
           <SidebarTabsDialogRow label="Host">
             <input
-              className="w-40 rounded-md border border-border bg-surface-raised px-2 py-1 text-xs text-text"
+              className="w-40 rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text"
               value={settings.obs.host}
               onChange={(e) => patch({ ...settings, obs: { ...settings.obs, host: e.target.value } })}
             />
@@ -67,7 +67,7 @@ export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClos
           <SidebarTabsDialogRow label="Port">
             <input
               type="number"
-              className="w-24 rounded-md border border-border bg-surface-raised px-2 py-1 text-xs text-text"
+              className="w-24 rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text"
               value={settings.obs.port}
               onChange={(e) =>
                 patch({ ...settings, obs: { ...settings.obs, port: Number(e.target.value) } })
@@ -80,7 +80,7 @@ export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClos
               <input
                 type="password"
                 placeholder={hasStoredPassword ? "••••••••" : "(optional)"}
-                className="w-32 rounded-md border border-border bg-surface-raised px-2 py-1 text-xs text-text"
+                className="w-32 rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -109,7 +109,7 @@ export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClos
 
           <div className="mt-2 flex items-center justify-between border-t border-border pt-3">
             <span className="text-xs text-text-muted">
-              Status: <strong className="text-text">{obsStatus.state}</strong>
+              Status: <strong className={OBS_STATUS_COLOR[obsStatus.state]}>{obsStatusLabel(obsStatus)}</strong>
               {obsStatus.state === "error" && (
                 <span className="block text-[11px] text-danger">{obsStatus.message}</span>
               )}

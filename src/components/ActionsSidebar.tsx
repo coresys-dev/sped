@@ -1,14 +1,13 @@
-import { Settings } from "lucide-react";
-import type { ObsStatus } from "../types";
+import { GripVertical, Settings } from "lucide-react";
+import { OBS_STATUS_COLOR, obsStatusLabel, type ObsStatus } from "../types";
 import { IconButton } from "../cscl-ui/primitives/IconButton";
 
 interface DraggableItemProps {
   label: string;
   payload: object;
-  onActivate?: () => void;
 }
 
-function DraggableItem({ label, payload, onActivate }: DraggableItemProps) {
+function DraggableItem({ label, payload }: DraggableItemProps) {
   return (
     <div
       className="mb-1 flex cursor-grab items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2 py-1.5 text-xs text-text transition-colors hover:border-accent active:cursor-grabbing"
@@ -17,14 +16,14 @@ function DraggableItem({ label, payload, onActivate }: DraggableItemProps) {
         e.dataTransfer.setData("application/x-sped-action", JSON.stringify(payload));
         e.dataTransfer.effectAllowed = "copy";
       }}
-      onClick={onActivate}
-      role={onActivate ? "button" : undefined}
     >
-      <span className="text-text-muted">⠿</span>
+      <GripVertical className="h-3.5 w-3.5 shrink-0 text-text-muted" />
       {label}
     </div>
   );
 }
+
+const SECTION_LABEL = "text-xs font-medium tracking-wide text-text-muted uppercase";
 
 const OBS_TRANSPORT_ITEMS: { label: string; op: string }[] = [
   { label: "Start Recording", op: "start_recording" },
@@ -34,13 +33,6 @@ const OBS_TRANSPORT_ITEMS: { label: string; op: string }[] = [
   { label: "Start Streaming", op: "start_streaming" },
   { label: "Stop Streaming", op: "stop_streaming" },
 ];
-
-const OBS_STATUS_STYLE: Record<ObsStatus["state"], string> = {
-  connected: "text-accent",
-  connecting: "text-accent-2",
-  error: "text-danger",
-  disconnected: "text-text-muted",
-};
 
 export interface ActionsSidebarProps {
   obsStatus: ObsStatus;
@@ -53,27 +45,16 @@ export function ActionsSidebar({ obsStatus, onOpenSettings }: ActionsSidebarProp
   return (
     <aside className="animate-chrome-in flex h-full w-56 shrink-0 flex-col rounded-lg border border-border bg-surface shadow-float">
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="mb-2.5 text-[11px] font-semibold tracking-wide text-text-muted uppercase">
-          Actions
-        </div>
+        <div className={`mb-3 ${SECTION_LABEL}`}>Actions</div>
 
         <p className="mb-4 text-[11px] leading-relaxed text-text-muted">
           Keyboard shortcuts are assigned directly on a selected control's properties panel.
         </p>
 
         <section className="mb-4">
-          <h3 className="mb-1.5 text-xs font-semibold text-text">OBS Studio</h3>
-          <div className="mb-1 text-[10px] tracking-wide text-text-muted uppercase">
-            Status:{" "}
-            <span className={OBS_STATUS_STYLE[obsStatus.state]}>
-              {obsStatus.state === "connected"
-                ? "Connected"
-                : obsStatus.state === "connecting"
-                  ? "Connecting…"
-                  : obsStatus.state === "error"
-                    ? "Error"
-                    : "Disconnected"}
-            </span>
+          <h3 className={`mb-1.5 ${SECTION_LABEL}`}>OBS Studio</h3>
+          <div className="mb-1 text-[11px] text-text-muted">
+            Status: <span className={OBS_STATUS_COLOR[obsStatus.state]}>{obsStatusLabel(obsStatus)}</span>
           </div>
           {scenes.length > 0 && (
             <>
@@ -98,18 +79,18 @@ export function ActionsSidebar({ obsStatus, onOpenSettings }: ActionsSidebarProp
         </section>
 
         <section className="mb-4">
-          <h3 className="mb-1.5 text-xs font-semibold text-text">System</h3>
-          <div className="text-[11px] text-text-muted italic">Coming soon</div>
+          <h3 className={`mb-1.5 ${SECTION_LABEL}`}>System</h3>
+          <div className="text-[11px] text-text-muted">Coming soon</div>
         </section>
 
         <section className="mb-4">
-          <h3 className="mb-1.5 text-xs font-semibold text-text">Media</h3>
-          <div className="text-[11px] text-text-muted italic">Coming soon</div>
+          <h3 className={`mb-1.5 ${SECTION_LABEL}`}>Media</h3>
+          <div className="text-[11px] text-text-muted">Coming soon</div>
         </section>
 
         <section>
-          <h3 className="mb-1.5 text-xs font-semibold text-text">Applications</h3>
-          <div className="text-[11px] text-text-muted italic">Coming soon</div>
+          <h3 className={`mb-1.5 ${SECTION_LABEL}`}>Applications</h3>
+          <div className="text-[11px] text-text-muted">Coming soon</div>
         </section>
       </div>
 

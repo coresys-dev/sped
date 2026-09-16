@@ -72,6 +72,28 @@ export interface DeviceStatus {
   mock: boolean;
 }
 
+/** `text-*` token class for an OBS status, shared by every place that
+ * displays it so the same state always reads the same color. */
+export const OBS_STATUS_COLOR: Record<ObsStatus["state"], string> = {
+  connected: "text-accent",
+  connecting: "text-accent-2",
+  error: "text-danger",
+  disconnected: "text-text-muted",
+};
+
+export function obsStatusLabel(status: ObsStatus): string {
+  switch (status.state) {
+    case "connected":
+      return "Connected";
+    case "connecting":
+      return "Connecting…";
+    case "error":
+      return "Error";
+    case "disconnected":
+      return "Disconnected";
+  }
+}
+
 export interface ObsSettings {
   host: string;
   port: number;
