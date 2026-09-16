@@ -3677,6 +3677,7 @@ name = "sped-device"
 version = "0.1.0"
 dependencies = [
  "bmd-speededitor",
+ "hidapi",
  "serde",
  "thiserror 2.0.20",
  "tracing",

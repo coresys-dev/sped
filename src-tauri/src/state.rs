@@ -1,5 +1,5 @@
 use crate::settings::SettingsStore;
-use sped_device::MockHandle;
+use sped_device::{LedController, MockHandle};
 use sped_integrations::{KeyboardExecutor, ObsIntegration};
 use sped_mapping::{Action, ActionError, ActionExecutor, Dispatcher, MappingEngine, Profile, ProfileError};
 use std::collections::HashMap;
@@ -18,6 +18,7 @@ pub struct AppState {
     pub profiles_dir: PathBuf,
     pub connected: Mutex<bool>,
     pub settings: SettingsStore,
+    pub leds: LedController,
 }
 
 /// Adapts `Arc<ObsIntegration>` (needed directly by the OBS commands) to
@@ -70,6 +71,7 @@ impl AppState {
             profiles_dir,
             connected: Mutex::new(false),
             settings,
+            leds: LedController::new(),
         }
     }
 

@@ -1,7 +1,7 @@
 use crate::settings::{self, AppSettings};
 use crate::state::AppState;
 use serde::Serialize;
-use sped_device::{ControlId, MockCommand};
+use sped_device::{ControlId, LedId, MockCommand};
 use sped_integrations::ObsStatus;
 use sped_mapping::{Mapping, Profile};
 use tauri::State;
@@ -260,4 +260,19 @@ pub fn clear_obs_password() -> Result<(), String> {
 #[tauri::command]
 pub fn has_obs_password() -> bool {
     settings::get_obs_password().is_some()
+}
+
+#[tauri::command]
+pub fn get_leds() -> Vec<LedId> {
+    LedId::ALL.to_vec()
+}
+
+#[tauri::command]
+pub fn set_led(state: State<AppState>, led: LedId, on: bool) -> Result<(), String> {
+    state.leds.set(led, on).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn clear_leds(state: State<AppState>) -> Result<(), String> {
+    state.leds.clear_all().map_err(|e| e.to_string())
 }

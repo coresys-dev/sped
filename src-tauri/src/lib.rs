@@ -51,6 +51,9 @@ pub fn run() {
             commands::set_obs_password,
             commands::clear_obs_password,
             commands::has_obs_password,
+            commands::get_leds,
+            commands::set_led,
+            commands::clear_leds,
             window_chrome::position_traffic_lights,
         ])
         .run(tauri::generate_context!())

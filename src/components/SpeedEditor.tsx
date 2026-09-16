@@ -144,6 +144,12 @@ function Key({
       onClick={() => onSelect(def.id)}
       onDragOver={(e) => {
         e.preventDefault();
+        // Without this, the cursor shows the "forbidden" icon: dragstart
+        // sets effectAllowed="copy", and if dropEffect is never set here it
+        // defaults to "move" (or "none"), which mismatches effectAllowed
+        // and reads as an invalid drop target even though preventDefault()
+        // was called.
+        e.dataTransfer.dropEffect = "copy";
         setDropTarget(true);
       }}
       onDragLeave={() => setDropTarget(false)}

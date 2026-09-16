@@ -1,8 +1,9 @@
 import { X } from "lucide-react";
+import { useState } from "react";
 import { api } from "../api";
 import { Chip } from "../cscl-ui/primitives/Chip";
 import { IconButton } from "../cscl-ui/primitives/IconButton";
-import type { ControlEvent, DeviceStatus } from "../types";
+import type { ControlEvent, DeviceStatus, LedId } from "../types";
 
 export interface DevPanelProps {
   deviceStatus: DeviceStatus | null;
@@ -11,6 +12,7 @@ export interface DevPanelProps {
 }
 
 const MOCK_CONTROLS = ["cut", "cam-1", "cam-2", "cam-3", "stop-play"];
+const LED_TEST_IDS: LedId[] = ["cam-1", "cam-2", "cam-3", "cut", "dis", "smth-cut"];
 
 function describe(event: ControlEvent): string {
   switch (event.type) {
@@ -31,9 +33,27 @@ function describe(event: ControlEvent): string {
 
 export function DevPanel({ deviceStatus, log, onClose }: DevPanelProps) {
   const mockActive = deviceStatus?.mock ?? false;
+  const [litLeds, setLitLeds] = useState<Set<LedId>>(new Set());
+
+  const toggleLed = async (led: LedId) => {
+    const next = !litLeds.has(led);
+    try {
+      await api.setLed(led, next);
+      setLitLeds((prev) => {
+        const copy = new Set(prev);
+        if (next) copy.add(led);
+        else copy.delete(led);
+        return copy;
+      });
+    } catch {
+      // Real hardware required (and untested whether it accepts a second
+      // concurrent HID handle) -- fails silently here, the command's own
+      // error is visible via the OS/devtools console if needed.
+    }
+  };
 
   return (
-    <div className="animate-chrome-in fixed right-4 bottom-4 z-40 flex max-h-[22rem] w-80 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-float">
+    <div className="animate-chrome-in fixed right-4 bottom-4 z-40 flex max-h-[26rem] w-80 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-float">
       <div className="flex items-center justify-between border-b border-border px-2.5 py-1.5 text-xs font-medium tracking-wide text-text-muted uppercase">
         <span>Speed Editor Events</span>
         <IconButton aria-label="Close event log" variant="ghost" size="sm" onClick={onClose}>
@@ -42,7 +62,7 @@ export function DevPanel({ deviceStatus, log, onClose }: DevPanelProps) {
       </div>
 
       {mockActive ? (
-        <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface-raised p-1 m-2">
+        <div className="m-2 flex flex-wrap gap-1 rounded-md border border-border bg-surface-raised p-1">
           {MOCK_CONTROLS.map((id) => (
             <Chip key={id} active={false} onClick={() => api.mockSend({ action: "tap", value: id })}>
               {id}
@@ -56,9 +76,32 @@ export function DevPanel({ deviceStatus, log, onClose }: DevPanelProps) {
           </Chip>
         </div>
       ) : (
-        <div className="border-b border-border p-2 text-[11px] text-text-muted">
-          Set SPED_MOCK=1 and restart to enable mock controls.
-        </div>
+        <>
+          <div className="border-b border-border p-2 text-[11px] text-text-muted">
+            Set SPED_MOCK=1 and restart to enable mock controls.
+          </div>
+          <div className="border-b border-border p-2">
+            <div className="mb-1 text-[10px] tracking-wide text-text-muted uppercase">
+              LED test (real hardware only)
+            </div>
+            <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface-raised p-1">
+              {LED_TEST_IDS.map((led) => (
+                <Chip key={led} active={litLeds.has(led)} onClick={() => toggleLed(led)}>
+                  {led}
+                </Chip>
+              ))}
+              <Chip
+                active={false}
+                onClick={() => {
+                  api.clearLeds().catch(() => {});
+                  setLitLeds(new Set());
+                }}
+              >
+                Clear
+              </Chip>
+            </div>
+          </div>
+        </>
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-1.5 font-mono text-[11px]">

@@ -167,8 +167,15 @@ The Speed Editor authentication algorithm implemented inside
   arms a non-`None` modifier (no host-keyboard-modifier listener yet).
 - Hold / double-press / long-press triggers exist in the `Trigger` enum but
   the engine only currently resolves `Press`/`Release`.
-- No LED/key feedback (software state -> device) yet; `bmd-speededitor`
-  exposes the primitives (`KeyLed`, `set_key_led`) for when this is tackled.
+- LED output exists (`sped_device::LedController`, `set_led`/`clear_leds`
+  commands, a manual test strip in the dev panel) but is **untested against
+  real hardware**: it opens its own independent HID handle for writes
+  rather than going through `bmd-speededitor`'s read-loop handle (see
+  `crates/device/src/led.rs` for why), and whether the device/OS actually
+  allows a second concurrent handle, and whether authentication is a
+  per-handle or device-wide unlock, hasn't been verified on a physical
+  Speed Editor. Automatic LED feedback (assigned/active state reflected on
+  the device) isn't wired up yet either way.
 - Wheel sensitivity/invert (Settings -> Device) scales the jog/shuttle delta
   once in `device_manager.rs`, so it affects the visualizer's rotation now;
   it has no effect on actions yet since the mapping engine doesn't resolve
@@ -183,7 +190,8 @@ The Speed Editor authentication algorithm implemented inside
 - [ ] Wire `ActiveApplicationDetector` into automatic profile switching.
 - [ ] Host-keyboard modifier listener to actually arm `Modifier` layers.
 - [ ] Hold / double-press / long-press trigger resolution in `MappingEngine`.
-- [ ] LED feedback (assigned/active state reflected on the physical device).
+- [ ] Verify LED output against real hardware (second-handle assumption,
+      auth scope) and wire automatic feedback (assigned/active state).
 - [ ] Jog/shuttle sensitivity curves and richer wheel actions (scrub
       timeline, numeric parameter, brush size, OBS volume).
 - [ ] Additional integrations: MIDI, HTTP/WebSocket, AppleScript/PowerShell,

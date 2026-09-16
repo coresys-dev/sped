@@ -4,6 +4,7 @@ import type {
   AppSettings,
   ControlEvent,
   DeviceStatus,
+  LedId,
   Mapping,
   MockCommand,
   ObsStatus,
@@ -43,6 +44,10 @@ export const api = {
   setObsPassword: (password: string) => invoke<void>("set_obs_password", { password }),
   clearObsPassword: () => invoke<void>("clear_obs_password"),
   hasObsPassword: () => invoke<boolean>("has_obs_password"),
+
+  getLeds: () => invoke<LedId[]>("get_leds"),
+  setLed: (led: LedId, on: boolean) => invoke<void>("set_led", { led, on }),
+  clearLeds: () => invoke<void>("clear_leds"),
 };
 
 export function onDeviceEvent(handler: (event: ControlEvent) => void): Promise<UnlistenFn> {

@@ -142,6 +142,27 @@ export function keysToComboString(keys: string[]): string {
   return keys.map((key) => NORMALIZED_TO_COMBO_TOKEN[key] ?? key).join("+");
 }
 
+/** Controls with a real LED on the hardware -- see `crates/device/src/led.rs`. */
+export type LedId =
+  | "close-up"
+  | "cut"
+  | "dis"
+  | "smth-cut"
+  | "trans-title"
+  | "snap"
+  | "cam-1"
+  | "cam-2"
+  | "cam-3"
+  | "cam-4"
+  | "cam-5"
+  | "cam-6"
+  | "cam-7"
+  | "cam-8"
+  | "cam-9"
+  | "live-owr"
+  | "video-only"
+  | "audio-only";
+
 export function keyboardAction(keys: string[]): KeyboardAction {
   return { kind: "keyboard", keys };
 }
