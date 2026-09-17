@@ -1,5 +1,5 @@
 import { GripVertical, Settings } from "lucide-react";
-import { OBS_STATUS_COLOR, obsStatusLabel, type ObsStatus } from "../types";
+import { OBS_STATUS_COLOR, obsStatusLabel, type ObsAction, type ObsStatus } from "../types";
 import { IconButton } from "../cscl-ui/primitives/IconButton";
 
 interface DraggableItemProps {
@@ -25,13 +25,47 @@ function DraggableItem({ label, payload }: DraggableItemProps) {
 
 const SECTION_LABEL = "text-xs font-medium tracking-wide text-text-muted uppercase";
 
-const OBS_TRANSPORT_ITEMS: { label: string; op: string }[] = [
-  { label: "Start Recording", op: "start_recording" },
-  { label: "Stop Recording", op: "stop_recording" },
-  { label: "Pause Recording", op: "pause_recording" },
-  { label: "Resume Recording", op: "resume_recording" },
-  { label: "Start Streaming", op: "start_streaming" },
-  { label: "Stop Streaming", op: "stop_streaming" },
+const OBS_FAMILY_ITEMS: { label: string; subcategory: string; payload: ObsAction }[] = [
+  {
+    label: "Recording Control",
+    subcategory: "Transport",
+    payload: { kind: "obs", op: "recording", mode: "toggle" },
+  },
+  {
+    label: "Streaming Control",
+    subcategory: "Transport",
+    payload: { kind: "obs", op: "streaming", mode: "toggle" },
+  },
+  {
+    label: "Virtual Camera",
+    subcategory: "Transport",
+    payload: { kind: "obs", op: "virtual_cam", mode: "toggle" },
+  },
+  {
+    label: "Studio Mode",
+    subcategory: "Transport",
+    payload: { kind: "obs", op: "studio_mode", mode: "toggle" },
+  },
+  {
+    label: "Source Mute",
+    subcategory: "Sources",
+    payload: { kind: "obs", op: "source_mute", source: "", mode: "toggle" },
+  },
+  {
+    label: "Source Visibility",
+    subcategory: "Sources",
+    payload: { kind: "obs", op: "source_visibility", scene: "", source: "", mode: "toggle" },
+  },
+  {
+    label: "Source Volume",
+    subcategory: "Sources",
+    payload: {
+      kind: "obs",
+      op: "source_volume",
+      source: "",
+      mode: { kind: "absolute", percent: 100 },
+    },
+  },
 ];
 
 export interface ActionsSidebarProps {
@@ -73,8 +107,14 @@ export function ActionsSidebar({ obsStatus, onOpenSettings }: ActionsSidebarProp
           <div className="mt-2 mb-1 text-[10px] tracking-wide text-text-muted uppercase">
             Transport
           </div>
-          {OBS_TRANSPORT_ITEMS.map((item) => (
-            <DraggableItem key={item.op} label={item.label} payload={{ kind: "obs", op: item.op }} />
+          {OBS_FAMILY_ITEMS.filter((item) => item.subcategory === "Transport").map((item) => (
+            <DraggableItem key={item.label} label={item.label} payload={item.payload} />
+          ))}
+          <div className="mt-2 mb-1 text-[10px] tracking-wide text-text-muted uppercase">
+            Sources
+          </div>
+          {OBS_FAMILY_ITEMS.filter((item) => item.subcategory === "Sources").map((item) => (
+            <DraggableItem key={item.label} label={item.label} payload={item.payload} />
           ))}
         </section>
 
