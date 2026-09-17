@@ -73,7 +73,7 @@ const OBS_FAMILY_ITEMS: { label: string; subcategory: string; payload: ObsAction
       kind: "obs",
       op: "source_volume",
       source: "",
-      mode: { kind: "absolute", percent: 100 },
+      mode: { kind: "absolute", value: 100, unit: "percent" },
     },
   },
 ];

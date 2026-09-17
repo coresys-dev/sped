@@ -20,9 +20,11 @@ export type StudioModeMode = "enable" | "disable" | "toggle" | "trigger_transiti
 export type MuteMode = "mute" | "unmute" | "toggle";
 export type VisibilityMode = "show" | "hide" | "toggle";
 
+export type VolumeUnit = "percent" | "db";
+
 export type VolumeMode =
-  | { kind: "absolute"; percent: number }
-  | { kind: "relative"; delta_percent: number };
+  | { kind: "absolute"; value: number; unit: VolumeUnit }
+  | { kind: "relative"; value: number; unit: VolumeUnit };
 
 export interface ObsRecording {
   kind: "obs";
@@ -108,7 +110,7 @@ export interface Mapping {
   threshold: number;
   /** Only meaningful for `jog_continuous`: multiplies the raw per-event
    * wheel delta into the mapped action's continuous parameter (currently
-   * only `source_volume`'s relative `delta_percent`). */
+   * only `source_volume`'s relative `value`). */
   amount_per_tick: number;
 }
 
@@ -353,10 +355,13 @@ export function actionLabel(action: Action): string {
       return `Source Mute (${action.source || "unset"}) — ${MUTE_MODE_LABEL[action.mode]}`;
     case "source_visibility":
       return `Source Visibility (${action.source || "unset"}) — ${VISIBILITY_MODE_LABEL[action.mode]}`;
-    case "source_volume":
-      return action.mode.kind === "absolute"
-        ? `Source Volume (${action.source || "unset"}) — ${action.mode.percent}%`
-        : `Source Volume (${action.source || "unset"}) — ${action.mode.delta_percent >= 0 ? "+" : ""}${action.mode.delta_percent}%`;
+    case "source_volume": {
+      const { value, unit } = action.mode;
+      const suffix = unit === "db" ? "dB" : "%";
+      const shown =
+        action.mode.kind === "absolute" ? `${value}${suffix}` : `${value >= 0 ? "+" : ""}${value}${suffix}`;
+      return `Source Volume (${action.source || "unset"}) — ${shown}`;
+    }
   }
 }
 

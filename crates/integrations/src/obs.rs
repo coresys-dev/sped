@@ -5,7 +5,7 @@ use obws::Client;
 use serde::Serialize;
 use sped_mapping::{
     Action, ActionError, ActionExecutor, MuteMode, ObsAction, RecordingMode, StartStopToggle,
-    StudioModeMode, VisibilityMode, VolumeMode,
+    StudioModeMode, VisibilityMode, VolumeMode, VolumeUnit,
 };
 use std::error::Error as StdError;
 use std::fmt::Write as _;
@@ -24,6 +24,23 @@ fn describe_error(err: &(dyn StdError + 'static)) -> String {
         source = cause.source();
     }
     message
+}
+
+/// Converts a dB value (as shown in OBS's mixer, 0 dB = unity gain) to the
+/// linear multiplier `obws` expects.
+fn db_to_mul(db: f32) -> f32 {
+    10f32.powf(db / 20.0)
+}
+
+/// Inverse of [`db_to_mul`]. `mul <= 0.0` (fully muted) has no finite dB
+/// value -- OBS's own UI floors its slider at -100 dB, so we do the same
+/// rather than producing `-inf`.
+fn mul_to_db(mul: f32) -> f32 {
+    if mul <= 0.0 {
+        -100.0
+    } else {
+        20.0 * mul.log10()
+    }
 }
 
 /// Connection state surfaced to the UI. OBS being unreachable is a normal,
@@ -220,16 +237,24 @@ impl ObsIntegration {
                     }
                     let input = InputId::Name(source.as_str());
                     match mode {
-                        VolumeMode::Absolute { percent } => {
-                            client.inputs().set_volume(input, Volume::Mul(percent / 100.0)).await
+                        VolumeMode::Absolute { value, unit } => {
+                            let mul = match unit {
+                                VolumeUnit::Percent => value / 100.0,
+                                VolumeUnit::Db => db_to_mul(value),
+                            };
+                            client.inputs().set_volume(input, Volume::Mul(mul)).await
                         }
-                        VolumeMode::Relative { delta_percent } => {
+                        VolumeMode::Relative { value, unit } => {
                             let current = client
                                 .inputs()
                                 .volume(input)
                                 .await
                                 .map_err(|e| ActionError::Failed(describe_error(&e)))?;
-                            let new_mul = (current.mul + delta_percent / 100.0).clamp(0.0, 20.0);
+                            let new_mul = match unit {
+                                VolumeUnit::Percent => current.mul + value / 100.0,
+                                VolumeUnit::Db => db_to_mul(mul_to_db(current.mul) + value),
+                            }
+                            .clamp(0.0, 20.0);
                             client.inputs().set_volume(input, Volume::Mul(new_mul)).await
                         }
                     }

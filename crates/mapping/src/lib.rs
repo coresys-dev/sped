@@ -13,7 +13,7 @@ mod trigger;
 
 pub use action::{
     Action, KeyboardAction, MuteMode, ObsAction, RecordingMode, StartStopToggle, StudioModeMode,
-    VisibilityMode, VolumeMode,
+    VisibilityMode, VolumeMode, VolumeUnit,
 };
 pub use dispatch::Dispatcher;
 pub use engine::MappingEngine;

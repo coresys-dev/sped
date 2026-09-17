@@ -129,11 +129,12 @@ fn scale_continuous(action: &Action, delta: i32, amount_per_tick: f32) -> Action
     match action {
         Action::Obs(ObsAction::SourceVolume {
             source,
-            mode: VolumeMode::Relative { .. },
+            mode: VolumeMode::Relative { unit, .. },
         }) => Action::Obs(ObsAction::SourceVolume {
             source: source.clone(),
             mode: VolumeMode::Relative {
-                delta_percent: delta as f32 * amount_per_tick,
+                value: delta as f32 * amount_per_tick,
+                unit: *unit,
             },
         }),
         other => other.clone(),
@@ -143,7 +144,7 @@ fn scale_continuous(action: &Action, delta: i32, amount_per_tick: f32) -> Action
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::{Action, KeyboardAction};
+    use crate::action::{Action, KeyboardAction, VolumeUnit};
     use crate::mapping::Mapping;
 
     fn ctrl_b() -> Action {
@@ -298,7 +299,7 @@ mod tests {
         let mut profile = Profile::new("Test");
         let volume_action = Action::Obs(ObsAction::SourceVolume {
             source: "Mic".into(),
-            mode: VolumeMode::Relative { delta_percent: 0.0 },
+            mode: VolumeMode::Relative { value: 0.0, unit: VolumeUnit::Percent },
         });
         let mapping = Mapping {
             trigger: Trigger::JogContinuous,
@@ -313,7 +314,7 @@ mod tests {
             actions,
             vec![Action::Obs(ObsAction::SourceVolume {
                 source: "Mic".into(),
-                mode: VolumeMode::Relative { delta_percent: 10.0 },
+                mode: VolumeMode::Relative { value: 10.0, unit: VolumeUnit::Percent },
             })]
         );
 
@@ -322,7 +323,7 @@ mod tests {
             actions,
             vec![Action::Obs(ObsAction::SourceVolume {
                 source: "Mic".into(),
-                mode: VolumeMode::Relative { delta_percent: -5.0 },
+                mode: VolumeMode::Relative { value: -5.0, unit: VolumeUnit::Percent },
             })]
         );
     }

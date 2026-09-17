@@ -19,6 +19,7 @@ import {
   type StudioModeMode,
   type Trigger,
   type VisibilityMode,
+  type VolumeUnit,
 } from "../types";
 
 export interface JogWheelMappings {
@@ -252,54 +253,53 @@ function ObsActionEditor({ action, obsStatus, onChange }: ObsActionEditorProps) 
               </option>
             ))}
           </select>
-          <select
+          <div className="flex gap-1.5">
+            <select
+              className={SELECT_CLASS}
+              value={action.mode.kind}
+              onChange={(e) =>
+                onChange({
+                  ...action,
+                  mode:
+                    e.target.value === "absolute"
+                      ? { kind: "absolute", value: action.mode.unit === "db" ? 0 : 100, unit: action.mode.unit }
+                      : { kind: "relative", value: action.mode.unit === "db" ? 1 : 10, unit: action.mode.unit },
+                })
+              }
+            >
+              <option value="absolute">Absolute</option>
+              <option value="relative">Relative</option>
+            </select>
+            <select
+              className={SELECT_CLASS}
+              value={action.mode.unit}
+              onChange={(e) => {
+                const unit = e.target.value as VolumeUnit;
+                onChange({
+                  ...action,
+                  mode: { ...action.mode, unit },
+                });
+              }}
+            >
+              <option value="percent">%</option>
+              <option value="db">dB</option>
+            </select>
+          </div>
+          <input
+            type="number"
             className={SELECT_CLASS}
-            value={action.mode.kind}
-            onChange={(e) =>
+            min={action.mode.kind === "absolute" && action.mode.unit === "percent" ? 0 : undefined}
+            step={1}
+            value={action.mode.value}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isFinite(n)) return;
               onChange({
                 ...action,
-                mode:
-                  e.target.value === "absolute"
-                    ? { kind: "absolute", percent: 100 }
-                    : { kind: "relative", delta_percent: 10 },
-              })
-            }
-          >
-            <option value="absolute">Absolute</option>
-            <option value="relative">Relative</option>
-          </select>
-          {action.mode.kind === "absolute" ? (
-            <input
-              type="number"
-              className={SELECT_CLASS}
-              min={0}
-              step={1}
-              value={action.mode.percent}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                if (!Number.isFinite(n)) return;
-                onChange({
-                  ...action,
-                  mode: { kind: "absolute", percent: n },
-                });
-              }}
-            />
-          ) : (
-            <input
-              type="number"
-              className={SELECT_CLASS}
-              step={1}
-              value={action.mode.delta_percent}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                if (!Number.isFinite(n)) return;
-                onChange({
-                  ...action,
-                  mode: { kind: "relative", delta_percent: n },
-                });
-              }}
-            />
-          )}
+                mode: { ...action.mode, value: n },
+              });
+            }}
+          />
         </div>
       );
   }

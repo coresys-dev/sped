@@ -85,15 +85,37 @@ pub enum VisibilityMode {
     Toggle,
 }
 
-/// `percent`/`delta_percent` are plain percentages (100.0 = unity gain),
-/// converted to `obws`'s linear `mul` at the execution boundary
+/// Whether a `VolumeMode` value is a plain percentage (100.0 = unity gain)
+/// or a dB value matching OBS's own mixer display. Both are converted to
+/// `obws`'s linear `mul` at the execution boundary
 /// (`sped-integrations::obs`) -- never stored as `mul` so the UI can show
-/// a human percentage directly.
+/// either unit directly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum VolumeUnit {
+    #[default]
+    Percent,
+    Db,
+}
+
+/// `value` is a percentage or a dB delta depending on `unit`. The `percent`
+/// field name is kept as a deserialize-only alias so profiles saved before
+/// `unit` existed (implicitly percent) still load.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum VolumeMode {
-    Absolute { percent: f32 },
-    Relative { delta_percent: f32 },
+    Absolute {
+        #[serde(alias = "percent")]
+        value: f32,
+        #[serde(default)]
+        unit: VolumeUnit,
+    },
+    Relative {
+        #[serde(alias = "delta_percent")]
+        value: f32,
+        #[serde(default)]
+        unit: VolumeUnit,
+    },
 }
 
 #[cfg(test)]
@@ -172,12 +194,33 @@ mod tests {
     fn source_volume_round_trips_absolute_and_relative() {
         round_trips(&ObsAction::SourceVolume {
             source: "Mic".into(),
-            mode: VolumeMode::Absolute { percent: 75.0 },
+            mode: VolumeMode::Absolute { value: 75.0, unit: VolumeUnit::Percent },
         });
         round_trips(&ObsAction::SourceVolume {
             source: "Mic".into(),
-            mode: VolumeMode::Relative { delta_percent: -10.0 },
+            mode: VolumeMode::Relative { value: -10.0, unit: VolumeUnit::Percent },
         });
+        round_trips(&ObsAction::SourceVolume {
+            source: "Mic".into(),
+            mode: VolumeMode::Absolute { value: -6.0, unit: VolumeUnit::Db },
+        });
+        round_trips(&ObsAction::SourceVolume {
+            source: "Mic".into(),
+            mode: VolumeMode::Relative { value: 3.0, unit: VolumeUnit::Db },
+        });
+    }
+
+    #[test]
+    fn source_volume_deserializes_pre_unit_profiles_as_percent() {
+        let json = r#"{"op":"source_volume","source":"Mic","mode":{"kind":"absolute","percent":75.0}}"#;
+        let action: ObsAction = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            action,
+            ObsAction::SourceVolume {
+                source: "Mic".into(),
+                mode: VolumeMode::Absolute { value: 75.0, unit: VolumeUnit::Percent },
+            }
+        );
     }
 
     #[test]
