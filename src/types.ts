@@ -14,18 +14,71 @@ export interface ObsSwitchScene {
   scene: string;
 }
 
-export interface ObsSimple {
+export type RecordingMode = "start" | "stop" | "pause" | "resume" | "toggle";
+export type StartStopToggle = "start" | "stop" | "toggle";
+export type StudioModeMode = "enable" | "disable" | "toggle" | "trigger_transition";
+export type MuteMode = "mute" | "unmute" | "toggle";
+export type VisibilityMode = "show" | "hide" | "toggle";
+
+export type VolumeMode =
+  | { kind: "absolute"; percent: number }
+  | { kind: "relative"; delta_percent: number };
+
+export interface ObsRecording {
   kind: "obs";
-  op:
-    | "start_recording"
-    | "stop_recording"
-    | "pause_recording"
-    | "resume_recording"
-    | "start_streaming"
-    | "stop_streaming";
+  op: "recording";
+  mode: RecordingMode;
 }
 
-export type ObsAction = ObsSwitchScene | ObsSimple;
+export interface ObsStreaming {
+  kind: "obs";
+  op: "streaming";
+  mode: StartStopToggle;
+}
+
+export interface ObsVirtualCam {
+  kind: "obs";
+  op: "virtual_cam";
+  mode: StartStopToggle;
+}
+
+export interface ObsStudioMode {
+  kind: "obs";
+  op: "studio_mode";
+  mode: StudioModeMode;
+}
+
+export interface ObsSourceMute {
+  kind: "obs";
+  op: "source_mute";
+  source: string;
+  mode: MuteMode;
+}
+
+export interface ObsSourceVisibility {
+  kind: "obs";
+  op: "source_visibility";
+  scene: string;
+  source: string;
+  mode: VisibilityMode;
+}
+
+export interface ObsSourceVolume {
+  kind: "obs";
+  op: "source_volume";
+  source: string;
+  mode: VolumeMode;
+}
+
+export type ObsAction =
+  | ObsSwitchScene
+  | ObsRecording
+  | ObsStreaming
+  | ObsVirtualCam
+  | ObsStudioMode
+  | ObsSourceMute
+  | ObsSourceVisibility
+  | ObsSourceVolume;
 
 export type Action = KeyboardAction | ObsAction;
 
@@ -64,7 +117,7 @@ export type MockCommand =
 export type ObsStatus =
   | { state: "disconnected" }
   | { state: "connecting" }
-  | { state: "connected"; scenes: string[] }
+  | { state: "connected"; scenes: string[]; inputs: string[] }
   | { state: "error"; message: string };
 
 export interface DeviceStatus {
@@ -171,6 +224,39 @@ export function obsSwitchScene(scene: string): ObsSwitchScene {
   return { kind: "obs", op: "switch_scene", scene };
 }
 
+const RECORDING_MODE_LABEL: Record<RecordingMode, string> = {
+  start: "Start",
+  stop: "Stop",
+  pause: "Pause",
+  resume: "Resume",
+  toggle: "Toggle",
+};
+
+const START_STOP_TOGGLE_LABEL: Record<StartStopToggle, string> = {
+  start: "Start",
+  stop: "Stop",
+  toggle: "Toggle",
+};
+
+const STUDIO_MODE_LABEL: Record<StudioModeMode, string> = {
+  enable: "Enable",
+  disable: "Disable",
+  toggle: "Toggle",
+  trigger_transition: "Trigger Transition",
+};
+
+const MUTE_MODE_LABEL: Record<MuteMode, string> = {
+  mute: "Mute",
+  unmute: "Unmute",
+  toggle: "Toggle",
+};
+
+const VISIBILITY_MODE_LABEL: Record<VisibilityMode, string> = {
+  show: "Show",
+  hide: "Hide",
+  toggle: "Toggle",
+};
+
 export function actionLabel(action: Action): string {
   if (action.kind === "keyboard") {
     return action.keys.join(" + ");
@@ -178,18 +264,22 @@ export function actionLabel(action: Action): string {
   switch (action.op) {
     case "switch_scene":
       return `Switch Scene → ${action.scene}`;
-    case "start_recording":
-      return "Start Recording";
-    case "stop_recording":
-      return "Stop Recording";
-    case "pause_recording":
-      return "Pause Recording";
-    case "resume_recording":
-      return "Resume Recording";
-    case "start_streaming":
-      return "Start Streaming";
-    case "stop_streaming":
-      return "Stop Streaming";
+    case "recording":
+      return `Recording — ${RECORDING_MODE_LABEL[action.mode]}`;
+    case "streaming":
+      return `Streaming — ${START_STOP_TOGGLE_LABEL[action.mode]}`;
+    case "virtual_cam":
+      return `Virtual Camera — ${START_STOP_TOGGLE_LABEL[action.mode]}`;
+    case "studio_mode":
+      return `Studio Mode — ${STUDIO_MODE_LABEL[action.mode]}`;
+    case "source_mute":
+      return `Source Mute (${action.source || "unset"}) — ${MUTE_MODE_LABEL[action.mode]}`;
+    case "source_visibility":
+      return `Source Visibility (${action.source || "unset"}) — ${VISIBILITY_MODE_LABEL[action.mode]}`;
+    case "source_volume":
+      return action.mode.kind === "absolute"
+        ? `Source Volume (${action.source || "unset"}) — ${action.mode.percent}%`
+        : `Source Volume (${action.source || "unset"}) — ${action.mode.delta_percent >= 0 ? "+" : ""}${action.mode.delta_percent}%`;
   }
 }
 
