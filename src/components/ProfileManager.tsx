@@ -2,25 +2,20 @@ import { useRef } from "react";
 import { DropdownMenu } from "../cscl-ui/overlays/DropdownMenu";
 
 export interface ProfileManagerProps {
-  profiles: string[];
   activeProfile: string;
-  onSelect: (name: string) => void;
-  onCreate: (name: string) => void;
   onDuplicate: (name: string) => void;
   onRename: (name: string) => void;
-  onDelete: () => void;
   onExport: () => void;
   onImport: (json: string) => void;
 }
 
+/** Actions on the *active* profile that don't fit `ProfileTabBar`'s plain
+ * select/close/new (that component owns switching, creating and deleting
+ * profiles as tabs in the title bar). */
 export function ProfileManager({
-  profiles,
   activeProfile,
-  onSelect,
-  onCreate,
   onDuplicate,
   onRename,
-  onDelete,
   onExport,
   onImport,
 }: ProfileManagerProps) {
@@ -28,29 +23,10 @@ export function ProfileManager({
 
   return (
     <div className="flex items-center gap-1">
-      <select
-        className="rounded-md border border-border bg-surface-raised px-2 py-1.5 text-xs text-text"
-        value={activeProfile}
-        onChange={(e) => onSelect(e.target.value)}
-      >
-        {profiles.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
-
       <DropdownMenu
         triggerLabel="Profile actions"
-        expandDirection="left"
+        expandDirection="right"
         items={[
-          {
-            label: "New profile",
-            onClick: () => {
-              const name = window.prompt("New profile name?");
-              if (name) onCreate(name);
-            },
-          },
           {
             label: "Duplicate",
             onClick: () => {
@@ -63,12 +39,6 @@ export function ProfileManager({
             onClick: () => {
               const name = window.prompt("Rename profile to?", activeProfile);
               if (name) onRename(name);
-            },
-          },
-          {
-            label: "Delete",
-            onClick: () => {
-              if (window.confirm(`Delete profile "${activeProfile}"?`)) onDelete();
             },
           },
           { label: "Export…", onClick: onExport },

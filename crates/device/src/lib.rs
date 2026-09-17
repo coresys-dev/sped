@@ -11,10 +11,11 @@ mod led;
 mod mock;
 mod speed_editor;
 mod surface;
+mod vendor;
 
 pub use control::ControlId;
 pub use event::ControlEvent;
-pub use led::{LedController, LedId};
+pub use led::{LedCommand, LedController, LedId};
 pub use mock::{mock_surface, MockCommand, MockHandle, MockSurface};
 pub use speed_editor::SpeedEditorSurface;
 pub use surface::{ControlSurface, DeviceError};

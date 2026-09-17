@@ -20,9 +20,36 @@ function controlDisplayName(id: ControlId): string {
 
 export function PropertiesPanel({ control, actions, onAddAction, onRemoveAction }: PropertiesPanelProps) {
   const [recorderKey, setRecorderKey] = useState(0);
+  const [dropTarget, setDropTarget] = useState(false);
 
   return (
-    <aside className="animate-chrome-in flex h-full w-72 shrink-0 flex-col overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-float">
+    <aside
+      className={[
+        "animate-chrome-in flex h-full w-72 shrink-0 flex-col overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-float",
+        dropTarget && "outline-2 outline-accent outline-offset-1",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      onDragOver={(e) => {
+        if (!control) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setDropTarget(true);
+      }}
+      onDragLeave={() => setDropTarget(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDropTarget(false);
+        if (!control) return;
+        const payload = e.dataTransfer.getData("application/x-sped-action");
+        if (!payload) return;
+        try {
+          onAddAction(JSON.parse(payload) as Action);
+        } catch {
+          // Ignore malformed drag payloads (e.g. from outside the app).
+        }
+      }}
+    >
       {!control ? (
         <div className="text-xs text-text-muted">Select a control</div>
       ) : (

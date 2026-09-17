@@ -58,6 +58,48 @@ pub struct GeneralSettings {
     pub debug_overlay: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    #[default]
+    En,
+    Fr,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    #[default]
+    Dark,
+    Light,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LedFeedbackSettings {
+    /// Pressing a control with an LED lights it; pressing it again turns
+    /// it back off. Purely a frontend behavior (see `App.tsx`'s
+    /// `device-event` handler) -- nothing here drives it, this is just the
+    /// persisted on/off state and its `exclusiveCam` option.
+    pub enabled: bool,
+    /// Within the CAM1-9 / LIVE O/WR group only: lighting one turns off
+    /// whichever other one in that same group was already lit, so at most
+    /// one is ever on. Every other LED-having control keeps its own
+    /// independent state regardless of this setting.
+    pub exclusive_cam: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ExperienceSettings {
+    #[serde(default)]
+    pub language: Language,
+    #[serde(default)]
+    pub theme: Theme,
+    #[serde(default)]
+    pub led_feedback: LedFeedbackSettings,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -67,6 +109,8 @@ pub struct AppSettings {
     pub jog: JogSettings,
     #[serde(default)]
     pub general: GeneralSettings,
+    #[serde(default)]
+    pub experience: ExperienceSettings,
 }
 
 pub struct SettingsStore {

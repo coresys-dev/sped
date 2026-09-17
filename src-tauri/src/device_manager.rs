@@ -45,6 +45,12 @@ pub fn spawn(app: AppHandle) {
         Box::new(SpeedEditorSurface::new())
     };
 
+    if let Some(led_tx) = surface.led_sender() {
+        if let Some(state) = app.try_state::<AppState>() {
+            state.leds.attach(led_tx);
+        }
+    }
+
     thread::spawn(move || {
         let (tx, rx) = mpsc::channel::<ControlEvent>();
         let processor_app = app.clone();

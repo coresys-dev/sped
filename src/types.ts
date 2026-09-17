@@ -110,10 +110,25 @@ export interface GeneralSettings {
   debugOverlay: boolean;
 }
 
+export type Language = "en" | "fr";
+export type Theme = "dark" | "light";
+
+export interface LedFeedbackSettings {
+  enabled: boolean;
+  exclusiveCam: boolean;
+}
+
+export interface ExperienceSettings {
+  language: Language;
+  theme: Theme;
+  ledFeedback: LedFeedbackSettings;
+}
+
 export interface AppSettings {
   obs: ObsSettings;
   jog: JogSettings;
   general: GeneralSettings;
+  experience: ExperienceSettings;
 }
 
 const COMBO_TOKEN_TO_NORMALIZED: Record<string, string> = {
@@ -162,6 +177,43 @@ export type LedId =
   | "live-owr"
   | "video-only"
   | "audio-only";
+
+export const LED_IDS: LedId[] = [
+  "close-up",
+  "cut",
+  "dis",
+  "smth-cut",
+  "trans-title",
+  "snap",
+  "cam-1",
+  "cam-2",
+  "cam-3",
+  "cam-4",
+  "cam-5",
+  "cam-6",
+  "cam-7",
+  "cam-8",
+  "cam-9",
+  "live-owr",
+  "video-only",
+  "audio-only",
+];
+
+/** The "camera bank" LED group `ExperienceSettings.ledFeedback.exclusiveCam`
+ * applies to -- lighting any of these turns off any other lit one in the
+ * same group, everything else keeps its own independent state. */
+export const LED_CAM_GROUP = new Set<LedId>([
+  "cam-1",
+  "cam-2",
+  "cam-3",
+  "cam-4",
+  "cam-5",
+  "cam-6",
+  "cam-7",
+  "cam-8",
+  "cam-9",
+  "live-owr",
+]);
 
 export function keyboardAction(keys: string[]): KeyboardAction {
   return { kind: "keyboard", keys };

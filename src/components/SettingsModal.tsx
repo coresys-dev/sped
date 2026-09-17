@@ -1,9 +1,10 @@
-import { RotateCw, SlidersHorizontal, Video } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Languages, RotateCw, SlidersHorizontal, Video } from "lucide-react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Button } from "../cscl-ui/primitives/Button";
 import { Switch } from "../cscl-ui/primitives/Switch";
 import { Slider } from "../cscl-ui/primitives/Slider";
+import { SegmentedControl } from "../cscl-ui/primitives/SegmentedControl";
 import {
   SidebarTabsDialog,
   SidebarTabsDialogRow,
@@ -11,6 +12,8 @@ import {
 import { OBS_STATUS_COLOR, obsStatusLabel, type AppSettings, type ObsStatus } from "../types";
 
 export interface SettingsModalProps {
+  settings: AppSettings;
+  onChange: (settings: AppSettings) => void;
   obsStatus: ObsStatus;
   onObsConnect: (host: string, port: number, password?: string) => void;
   onObsDisconnect: () => void;
@@ -18,32 +21,27 @@ export interface SettingsModalProps {
 }
 
 const TABS = [
+  { id: "experience", icon: Languages, label: "Experience" },
   { id: "obs", icon: Video, label: "OBS Studio" },
   { id: "device", icon: RotateCw, label: "Device" },
   { id: "general", icon: SlidersHorizontal, label: "General" },
 ];
 
-export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClose }: SettingsModalProps) {
-  const [tab, setTab] = useState("obs");
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+export function SettingsModal({
+  settings,
+  onChange: patch,
+  obsStatus,
+  onObsConnect,
+  onObsDisconnect,
+  onClose,
+}: SettingsModalProps) {
+  const [tab, setTab] = useState("experience");
   const [password, setPassword] = useState("");
   const [hasStoredPassword, setHasStoredPassword] = useState(false);
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    api.getSettings().then(setSettings);
     api.hasObsPassword().then(setHasStoredPassword);
   }, []);
-
-  const patch = (next: AppSettings) => {
-    setSettings(next);
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(() => {
-      api.setSettings(next);
-    }, 250);
-  };
-
-  if (!settings) return null;
 
   return (
     <SidebarTabsDialog
@@ -54,6 +52,80 @@ export function SettingsModal({ obsStatus, onObsConnect, onObsDisconnect, onClos
       onClose={onClose}
       closeLabel="Close settings"
     >
+      {tab === "experience" && (
+        <div className="flex flex-col gap-4">
+          <SidebarTabsDialogRow label="Language">
+            <SegmentedControl
+              value={settings.experience.language}
+              options={[
+                { value: "en", label: "EN" },
+                { value: "fr", label: "FR" },
+              ]}
+              onChange={(language) =>
+                patch({ ...settings, experience: { ...settings.experience, language } })
+              }
+            />
+          </SidebarTabsDialogRow>
+
+          <SidebarTabsDialogRow label="Theme">
+            <SegmentedControl
+              value={settings.experience.theme}
+              options={[
+                { value: "dark", label: "Dark" },
+                { value: "light", label: "Light" },
+              ]}
+              onChange={(theme) => patch({ ...settings, experience: { ...settings.experience, theme } })}
+            />
+          </SidebarTabsDialogRow>
+
+          <div>
+            <SidebarTabsDialogRow label="Light up LEDs on press">
+              <Switch
+                checked={settings.experience.ledFeedback.enabled}
+                label="Light up LEDs on press"
+                onChange={(enabled) =>
+                  patch({
+                    ...settings,
+                    experience: {
+                      ...settings.experience,
+                      ledFeedback: { ...settings.experience.ledFeedback, enabled },
+                    },
+                  })
+                }
+              />
+            </SidebarTabsDialogRow>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-muted">
+              Pressing a control with a physical LED lights it; pressing it again turns it back
+              off.
+            </p>
+
+            {settings.experience.ledFeedback.enabled && (
+              <div className="mt-3 border-l-2 border-border pl-3">
+                <SidebarTabsDialogRow label="Exclusive LED">
+                  <Switch
+                    checked={settings.experience.ledFeedback.exclusiveCam}
+                    label="Exclusive LED"
+                    onChange={(exclusiveCam) =>
+                      patch({
+                        ...settings,
+                        experience: {
+                          ...settings.experience,
+                          ledFeedback: { ...settings.experience.ledFeedback, exclusiveCam },
+                        },
+                      })
+                    }
+                  />
+                </SidebarTabsDialogRow>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-text-muted">
+                  Within CAM1-9 / LIVE O/WR only: lighting one turns off whichever other one in
+                  that group was already lit, so at most one is ever on.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {tab === "obs" && (
         <div className="flex flex-col gap-4">
           <SidebarTabsDialogRow label="Host">

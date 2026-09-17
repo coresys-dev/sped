@@ -1,20 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Settings } from "lucide-react";
 import { api, onDeviceEvent } from "./api";
 import { ActionsSidebar } from "./components/ActionsSidebar";
-import { AppTitleBar } from "./components/AppTitleBar";
+import { IconButton } from "./cscl-ui/primitives/IconButton";
+import { useTheme } from "./cscl-ui/lib/hooks/useTheme";
 import { DevPanel } from "./components/DevPanel";
+import { ProfileManager } from "./components/ProfileManager";
+import { ProfileTabBar } from "./components/ProfileTabBar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import { SpeedEditor } from "./components/SpeedEditor";
-import type {
-  Action,
-  ControlEvent,
-  ControlId,
-  DeviceStatus,
-  Mapping,
-  ObsStatus,
-  Profile,
+import {
+  LED_CAM_GROUP,
+  LED_IDS,
+  type Action,
+  type AppSettings,
+  type ControlEvent,
+  type ControlId,
+  type DeviceStatus,
+  type LedId,
+  type Mapping,
+  type ObsStatus,
+  type Profile,
 } from "./types";
+
+const LED_ID_SET = new Set<string>(LED_IDS);
 
 const DEV_MODE = import.meta.env.DEV;
 /** Degrees of visual rotation per unit of (sensitivity-scaled) jog delta.
@@ -34,9 +44,37 @@ export default function App() {
   const [selected, setSelected] = useState<ControlId | null>(null);
   const [obsStatus, setObsStatus] = useState<ObsStatus>({ state: "disconnected" });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const settingsRef = useRef<AppSettings | null>(null);
+  const saveSettingsTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [devPanelOpen, setDevPanelOpen] = useState(DEV_MODE);
   const [eventLog, setEventLog] = useState<{ time: string; event: ControlEvent }[]>([]);
+  const [litLeds, setLitLeds] = useState<Set<LedId>>(new Set());
+
+  useTheme(settings?.experience.theme ?? null);
+
+  const patchSettings = useCallback((next: AppSettings) => {
+    settingsRef.current = next;
+    setSettings(next);
+    if (saveSettingsTimeout.current) clearTimeout(saveSettingsTimeout.current);
+    saveSettingsTimeout.current = setTimeout(() => api.setSettings(next), 250);
+  }, []);
+
+  const toggleLed = useCallback((id: LedId, on: boolean) => {
+    api.setLed(id, on).catch(() => {});
+    setLitLeds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const clearAllLeds = useCallback(() => {
+    api.clearLeds().catch(() => {});
+    setLitLeds(new Set());
+  }, []);
 
   const refreshProfiles = useCallback(async () => {
     const [names, activeName, active] = await Promise.all([
@@ -53,7 +91,11 @@ export default function App() {
     api.getDeviceStatus().then(setDeviceStatus).catch(() => {});
     api
       .getSettings()
-      .then((s) => setDevPanelOpen((open) => open || s.general.debugOverlay))
+      .then((s) => {
+        setDevPanelOpen((open) => open || s.general.debugOverlay);
+        settingsRef.current = s;
+        setSettings(s);
+      })
       .catch(() => {});
     refreshProfiles();
 
@@ -72,9 +114,34 @@ export default function App() {
         case "disconnected":
           setDeviceStatus((s) => ({ connected: false, mock: s?.mock ?? false }));
           break;
-        case "pressed":
+        case "pressed": {
           setPressed((prev) => new Set(prev).add(event.control));
+
+          const led = event.control as LedId;
+          const ledFeedback = settingsRef.current?.experience.ledFeedback;
+          if (ledFeedback?.enabled && LED_ID_SET.has(event.control)) {
+            setLitLeds((prev) => {
+              const next = new Set(prev);
+              if (next.has(led)) {
+                next.delete(led);
+                api.setLed(led, false).catch(() => {});
+                return next;
+              }
+              if (ledFeedback.exclusiveCam && LED_CAM_GROUP.has(led)) {
+                for (const other of next) {
+                  if (LED_CAM_GROUP.has(other)) {
+                    next.delete(other);
+                    api.setLed(other, false).catch(() => {});
+                  }
+                }
+              }
+              next.add(led);
+              api.setLed(led, true).catch(() => {});
+              return next;
+            });
+          }
           break;
+        }
         case "released":
           setPressed((prev) => {
             const next = new Set(prev);
@@ -178,53 +245,60 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col bg-bg">
-      <AppTitleBar
-        deviceStatus={deviceStatus}
-        profileManager={{
-          profiles,
-          activeProfile: activeProfileName,
-          onSelect: async (name) => {
-            await api.selectProfile(name);
-            await refreshProfiles();
-          },
-          onCreate: async (name) => {
-            await api.createProfile(name);
-            await api.selectProfile(name);
-            await refreshProfiles();
-          },
-          onDuplicate: async (name) => {
-            await api.duplicateProfile(activeProfileName, name);
-            await api.selectProfile(name);
-            await refreshProfiles();
-          },
-          onRename: async (name) => {
-            await api.renameProfile(activeProfileName, name);
-            await refreshProfiles();
-          },
-          onDelete: async () => {
-            await api.deleteProfile(activeProfileName);
-            await refreshProfiles();
-          },
-          onExport: async () => {
-            const json = await api.exportProfile(activeProfileName);
-            const blob = new Blob([json], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${activeProfileName}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          },
-          onImport: async (json) => {
-            const name = await api.importProfile(json);
-            await api.selectProfile(name);
-            await refreshProfiles();
-          },
+      <ProfileTabBar
+        profiles={profiles}
+        activeProfile={activeProfileName}
+        onSelect={async (name) => {
+          await api.selectProfile(name);
+          await refreshProfiles();
         }}
+        onCreate={async (name) => {
+          await api.createProfile(name);
+          await api.selectProfile(name);
+          await refreshProfiles();
+        }}
+        onDelete={async (name) => {
+          await api.deleteProfile(name);
+          await refreshProfiles();
+        }}
+        trailing={
+          <>
+            <ProfileManager
+              activeProfile={activeProfileName}
+              onDuplicate={async (name) => {
+                await api.duplicateProfile(activeProfileName, name);
+                await api.selectProfile(name);
+                await refreshProfiles();
+              }}
+              onRename={async (name) => {
+                await api.renameProfile(activeProfileName, name);
+                await refreshProfiles();
+              }}
+              onExport={async () => {
+                const json = await api.exportProfile(activeProfileName);
+                const blob = new Blob([json], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${activeProfileName}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              onImport={async (json) => {
+                const name = await api.importProfile(json);
+                await api.selectProfile(name);
+                await refreshProfiles();
+              }}
+            />
+            <IconButton aria-label="Open settings" variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}>
+              <Settings className="h-4 w-4" />
+            </IconButton>
+          </>
+        }
       />
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
-        <ActionsSidebar obsStatus={obsStatus} onOpenSettings={() => setSettingsOpen(true)} />
+        <ActionsSidebar obsStatus={obsStatus} deviceStatus={deviceStatus} />
 
         <main className="flex min-w-0 flex-1 items-center justify-center overflow-auto">
           <SpeedEditor
@@ -233,6 +307,7 @@ export default function App() {
             assigned={assignedControls}
             jogAngle={jogAngle}
             jogActive={jogActive}
+            litLeds={litLeds}
             onSelect={setSelected}
             onDropAction={handleDropAction}
           />
@@ -246,8 +321,10 @@ export default function App() {
         />
       </div>
 
-      {settingsOpen && (
+      {settingsOpen && settings && (
         <SettingsModal
+          settings={settings}
+          onChange={patchSettings}
           obsStatus={obsStatus}
           onObsConnect={(host, port, password) => api.obsConnect(host, port, password)}
           onObsDisconnect={() => api.obsDisconnect()}
@@ -259,6 +336,9 @@ export default function App() {
         <DevPanel
           deviceStatus={deviceStatus}
           log={eventLog}
+          litLeds={litLeds}
+          onToggleLed={toggleLed}
+          onClearLeds={clearAllLeds}
           onClose={() => setDevPanelOpen(false)}
         />
       )}

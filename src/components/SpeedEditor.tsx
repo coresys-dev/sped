@@ -1,5 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import type { ControlId } from "../types";
+import { LED_IDS, type ControlId, type LedId } from "../types";
+
+const LED_ID_SET = new Set<string>(LED_IDS);
 
 /**
  * One CSS grid for the whole device instead of several independently
@@ -113,6 +115,7 @@ export interface SpeedEditorProps {
    * wrap this mod 360. */
   jogAngle: number;
   jogActive: boolean;
+  litLeds: Set<LedId>;
   onSelect: (control: ControlId) => void;
   onDropAction?: (control: ControlId, payload: string) => void;
 }
@@ -122,6 +125,7 @@ function Key({
   selected,
   isPressed,
   isAssigned,
+  ledLit,
   onSelect,
   onDropAction,
 }: {
@@ -129,6 +133,10 @@ function Key({
   selected: boolean;
   isPressed: boolean;
   isAssigned: boolean;
+  /** `undefined` when this control has no physical LED at all (most keys)
+   * -- distinct from `false` (has one, just not lit) so the indicator dash
+   * only renders for the ~18 controls that actually have one. */
+  ledLit: boolean | undefined;
   onSelect: (control: ControlId) => void;
   onDropAction?: (control: ControlId, payload: string) => void;
 }) {
@@ -171,6 +179,14 @@ function Key({
         .filter(Boolean)
         .join(" ")}
     >
+      {ledLit !== undefined && (
+        <span
+          aria-hidden
+          className={`absolute top-1 left-1/2 h-0.5 w-3 -translate-x-1/2 rounded-full transition-colors duration-150 ${
+            ledLit ? "bg-danger" : "bg-text-muted/40"
+          }`}
+        />
+      )}
       {def.label}
       {def.sub && <span className="text-[9px] font-medium text-text-muted">{def.sub}</span>}
       {isAssigned && (
@@ -186,6 +202,7 @@ export function SpeedEditor({
   assigned,
   jogAngle,
   jogActive,
+  litLeds,
   onSelect,
   onDropAction,
 }: SpeedEditorProps) {
@@ -208,6 +225,7 @@ export function SpeedEditor({
             selected={selected === def.id}
             isPressed={pressed.has(def.id)}
             isAssigned={assigned.has(def.id)}
+            ledLit={LED_ID_SET.has(def.id) ? litLeds.has(def.id as LedId) : undefined}
             onSelect={onSelect}
             onDropAction={onDropAction}
           />

@@ -1,16 +1,27 @@
-use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU32, Ordering};
+use crate::surface::DeviceError;
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use std::sync::mpsc::Sender;
+use std::sync::Mutex;
 
 /// Physical controls that have a controllable LED. Not every key does --
 /// per Blackmagic's own protocol notes (see
 /// `claude/docs/decisions/0001-speed-editor-driver.md`), the transport,
 /// trim and SOURCE/TIMELINE/SHTL/JOG/SCRL keys have no LED on real
 /// hardware, only these do. Bit positions match the output report format
-/// exactly (`SpeedEditorLed` in `smunaut/blackmagic-misc`, Apache-2.0) so
-/// `speed_editor.rs` can convert with a plain `1 << bit()` -- no
-/// dependency on `bmd-speededitor`'s own (private) `KeyLed` bit order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+/// exactly (`SpeedEditorLed` in `smunaut/blackmagic-misc`, Apache-2.0), so
+/// `crate::vendor` can use `bit()` directly with no separate LED-id enum
+/// of its own.
+///
+/// `Serialize`/`Deserialize` are hand-written against [`LedId::as_str`]
+/// rather than derived with `#[serde(rename_all = "kebab-case")]`, for the
+/// same reason as `ControlId` (see its doc comment in `control.rs`):
+/// serde's automatic case conversion doesn't hyphenate before a digit
+/// (`Cam1` -> `"cam1"`, not `"cam-1"`), which silently desynced every
+/// `CamN` id from the frontend's hardcoded `"cam-N"` strings -- the Tauri
+/// `set_led`/`clear_leds` IPC call would fail to deserialize the argument
+/// and throw, silently swallowed by the dev panel's `catch {}`, so CAM
+/// LEDs looked like they just didn't respond to clicks at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LedId {
     CloseUp,
     Cut,
@@ -76,79 +87,106 @@ impl LedId {
             LedId::AudioOnly => 17,
         }
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LedId::CloseUp => "close-up",
+            LedId::Cut => "cut",
+            LedId::Dis => "dis",
+            LedId::SmthCut => "smth-cut",
+            LedId::TransTitle => "trans-title",
+            LedId::Snap => "snap",
+            LedId::Cam7 => "cam-7",
+            LedId::Cam8 => "cam-8",
+            LedId::Cam9 => "cam-9",
+            LedId::LiveOwr => "live-owr",
+            LedId::Cam4 => "cam-4",
+            LedId::Cam5 => "cam-5",
+            LedId::Cam6 => "cam-6",
+            LedId::VideoOnly => "video-only",
+            LedId::Cam1 => "cam-1",
+            LedId::Cam2 => "cam-2",
+            LedId::Cam3 => "cam-3",
+            LedId::AudioOnly => "audio-only",
+        }
+    }
+
+    /// Inverse of [`LedId::as_str`]. `None` for anything else.
+    pub fn from_str(s: &str) -> Option<LedId> {
+        LedId::ALL.iter().copied().find(|led| led.as_str() == s)
+    }
 }
 
-/// Output-report LED writer, deliberately independent from
-/// [`crate::SpeedEditorSurface`]/`bmd-speededitor`'s input-report read
-/// loop rather than routed through it.
+impl Serialize for LedId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for LedId {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        LedId::from_str(&s).ok_or_else(|| de::Error::custom(format!("unknown led id: {s}")))
+    }
+}
+
+/// A change to make to the LED state, sent to whichever control surface is
+/// currently running (see `crate::vendor::SpeedEditor::run`, which drains
+/// these on the same `HidDevice` handle it reads input reports from).
+#[derive(Debug, Clone)]
+pub enum LedCommand {
+    Set(LedId, bool),
+    SetMany(Vec<LedId>, bool),
+    ClearAll,
+}
+
+/// Sends LED commands to whichever control surface is currently running.
 ///
-/// `bmd-speededitor::SpeedEditor::run()` only exposes a single blocking
-/// call that owns the device handle for the lifetime of the read loop --
-/// there is no way to interleave a write from another thread through its
-/// public API without forking its (non-`pub`) connect/auth logic, which
-/// would defeat the point of depending on it (see decision 0001). HID
-/// output reports don't need the same handle that's reading input
-/// reports, though: this opens its own short-lived `hidapi` handle to the
-/// same VID/PID for each write. Whether the OS/firmware actually allows a
-/// second concurrent handle, and whether the authentication the read-loop
-/// handle performs is a per-handle or device-wide unlock, is **untested
-/// against real hardware** -- this fails gracefully (returns
-/// [`DeviceError`], never panics) if either assumption doesn't hold, per
-/// this crate's error-handling rules.
+/// `hidapi::HidApi` is a process-wide singleton (only one instance can be
+/// open at a time -- see `hidapi::HidApiLock`), and the read loop already
+/// holds one for the lifetime of the connection. So this can't open its
+/// own independent handle to write LEDs (that always fails with
+/// `HidError::InitializationError` while the read loop's handle is open);
+/// instead it's a message queue the surface's `run()` loop drains on its
+/// own handle, between reads. Not attached to anything until the real
+/// surface calls [`LedController::attach`] (never, in mock mode) -- until
+/// then, every call fails with [`DeviceError::NotConnected`] rather than
+/// silently doing nothing or touching real hardware.
 pub struct LedController {
-    mask: AtomicU32,
+    tx: Mutex<Option<Sender<LedCommand>>>,
 }
 
 impl LedController {
-    const VID: u16 = 7899;
-    const PID: u16 = 55822;
-
     pub fn new() -> Self {
         Self {
-            mask: AtomicU32::new(0),
+            tx: Mutex::new(None),
         }
     }
 
-    pub fn set(&self, led: LedId, on: bool) -> Result<(), super::DeviceError> {
-        let bit = 1u32 << led.bit();
-        let mask = if on {
-            self.mask.fetch_or(bit, Ordering::SeqCst) | bit
-        } else {
-            self.mask.fetch_and(!bit, Ordering::SeqCst) & !bit
-        };
-        self.write(mask)
+    pub fn attach(&self, tx: Sender<LedCommand>) {
+        *self.tx.lock().unwrap() = Some(tx);
     }
 
-    pub fn set_many(&self, leds: &[LedId], on: bool) -> Result<(), super::DeviceError> {
-        let mut bits = 0u32;
-        for led in leds {
-            bits |= 1 << led.bit();
+    pub fn set(&self, led: LedId, on: bool) -> Result<(), DeviceError> {
+        self.send(LedCommand::Set(led, on))
+    }
+
+    pub fn set_many(&self, leds: &[LedId], on: bool) -> Result<(), DeviceError> {
+        self.send(LedCommand::SetMany(leds.to_vec(), on))
+    }
+
+    pub fn clear_all(&self) -> Result<(), DeviceError> {
+        self.send(LedCommand::ClearAll)
+    }
+
+    fn send(&self, cmd: LedCommand) -> Result<(), DeviceError> {
+        let guard = self.tx.lock().unwrap();
+        match &*guard {
+            Some(tx) => tx
+                .send(cmd)
+                .map_err(|_| DeviceError::Hid("LED command channel closed".into())),
+            None => Err(DeviceError::NotConnected),
         }
-        let mask = if on {
-            self.mask.fetch_or(bits, Ordering::SeqCst) | bits
-        } else {
-            self.mask.fetch_and(!bits, Ordering::SeqCst) & !bits
-        };
-        self.write(mask)
-    }
-
-    pub fn clear_all(&self) -> Result<(), super::DeviceError> {
-        self.mask.store(0, Ordering::SeqCst);
-        self.write(0)
-    }
-
-    fn write(&self, mask: u32) -> Result<(), super::DeviceError> {
-        let api = hidapi::HidApi::new().map_err(|e| super::DeviceError::Hid(format!("{e:?}")))?;
-        let device = api
-            .open(Self::VID, Self::PID)
-            .map_err(|e| super::DeviceError::Hid(format!("{e:?}")))?;
-
-        let bytes = mask.to_le_bytes();
-        let report = [0x02, bytes[0], bytes[1], bytes[2], bytes[3], 0x00];
-        device
-            .write(&report)
-            .map_err(|e| super::DeviceError::Hid(format!("{e:?}")))?;
-        Ok(())
     }
 }
 

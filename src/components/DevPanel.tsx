@@ -1,5 +1,4 @@
 import { X } from "lucide-react";
-import { useState } from "react";
 import { api } from "../api";
 import { Chip } from "../cscl-ui/primitives/Chip";
 import { IconButton } from "../cscl-ui/primitives/IconButton";
@@ -8,6 +7,9 @@ import type { ControlEvent, DeviceStatus, LedId } from "../types";
 export interface DevPanelProps {
   deviceStatus: DeviceStatus | null;
   log: { time: string; event: ControlEvent }[];
+  litLeds: Set<LedId>;
+  onToggleLed: (id: LedId, on: boolean) => void;
+  onClearLeds: () => void;
   onClose: () => void;
 }
 
@@ -31,26 +33,8 @@ function describe(event: ControlEvent): string {
   }
 }
 
-export function DevPanel({ deviceStatus, log, onClose }: DevPanelProps) {
+export function DevPanel({ deviceStatus, log, litLeds, onToggleLed, onClearLeds, onClose }: DevPanelProps) {
   const mockActive = deviceStatus?.mock ?? false;
-  const [litLeds, setLitLeds] = useState<Set<LedId>>(new Set());
-
-  const toggleLed = async (led: LedId) => {
-    const next = !litLeds.has(led);
-    try {
-      await api.setLed(led, next);
-      setLitLeds((prev) => {
-        const copy = new Set(prev);
-        if (next) copy.add(led);
-        else copy.delete(led);
-        return copy;
-      });
-    } catch {
-      // Real hardware required (and untested whether it accepts a second
-      // concurrent HID handle) -- fails silently here, the command's own
-      // error is visible via the OS/devtools console if needed.
-    }
-  };
 
   return (
     <div className="animate-chrome-in fixed right-4 bottom-4 z-40 flex max-h-[26rem] w-80 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-float">
@@ -86,17 +70,11 @@ export function DevPanel({ deviceStatus, log, onClose }: DevPanelProps) {
             </div>
             <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface-raised p-1">
               {LED_TEST_IDS.map((led) => (
-                <Chip key={led} active={litLeds.has(led)} onClick={() => toggleLed(led)}>
+                <Chip key={led} active={litLeds.has(led)} onClick={() => onToggleLed(led, !litLeds.has(led))}>
                   {led}
                 </Chip>
               ))}
-              <Chip
-                active={false}
-                onClick={() => {
-                  api.clearLeds().catch(() => {});
-                  setLitLeds(new Set());
-                }}
-              >
+              <Chip active={false} onClick={onClearLeds}>
                 Clear
               </Chip>
             </div>

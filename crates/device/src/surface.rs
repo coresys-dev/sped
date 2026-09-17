@@ -1,5 +1,6 @@
 use crate::control::ControlId;
 use crate::event::ControlEvent;
+use crate::led::LedCommand;
 use std::sync::mpsc::Sender;
 use thiserror::Error;
 
@@ -32,4 +33,13 @@ pub trait ControlSurface: Send {
     /// `ControlEvent::Disconnected` as connection state changes, returning
     /// only on unrecoverable error or when asked to stop.
     fn run(&mut self, tx: Sender<ControlEvent>) -> Result<(), DeviceError>;
+
+    /// A sender `run()` will drain LED commands from once it starts, if
+    /// this surface has LEDs at all. `None` (the default) for surfaces
+    /// with no LED hardware, e.g. `MockSurface` -- `LedController::send`
+    /// then fails with `DeviceError::NotConnected` instead of pretending
+    /// to succeed.
+    fn led_sender(&mut self) -> Option<Sender<LedCommand>> {
+        None
+    }
 }

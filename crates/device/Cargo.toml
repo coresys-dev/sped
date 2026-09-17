@@ -6,8 +6,8 @@ license = "MIT"
 description = "Device abstraction and normalized event model for the Blackmagic Speed Editor control surface"
 
 [dependencies]
-bmd-speededitor = "0.2"
 hidapi = "1"
+num_enum = "0.5"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 tracing = "0.1"

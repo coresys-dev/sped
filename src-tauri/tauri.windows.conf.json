@@ -3,6 +3,13 @@
   "app": {
     "windows": [
       {
+        "title": "Speed Editor Control",
+        "width": 1280,
+        "height": 720,
+        "minWidth": 1000,
+        "minHeight": 640,
+        "shadow": true,
+        "dragDropEnabled": false,
         "decorations": false
       }
     ]

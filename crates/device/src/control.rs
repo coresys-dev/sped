@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
 /// Identifies a single physical control on the Speed Editor.
@@ -6,8 +6,22 @@ use std::fmt;
 /// Variants mirror the physical silkscreen labels exactly (see
 /// `claude/docs/speed-editor-layout.html`) so the mapping engine, the
 /// frontend visualizer and the device layer always agree on names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+///
+/// `Serialize`/`Deserialize` are hand-written against [`ControlId::as_str`]
+/// (below) rather than derived with `#[serde(rename_all = "kebab-case")]`:
+/// serde's automatic case conversion doesn't insert a hyphen before a
+/// digit (`Cam1` -> `"cam1"`, not `"cam-1"`), and a few multi-word names
+/// don't decompose the way the derive would guess (`RiplOwr` ->
+/// `"ripl-owr"`, not `"ripple-owr"`; `SmthCut` -> `"smth-cut"`, not
+/// `"smooth-cut"`; `PlaceOnTop` -> `"place-on-top"`, not `"place-top"`;
+/// `Appnd` -> `"appnd"`, not `"append"`; `Split` -> `"split"`, not
+/// `"split-move"`; `RiplDel` -> `"ripl-del"`, not `"ripple-delete"`;
+/// `SrcOwr` -> `"src-owr"`, not `"source-owr"`). That silently desynced
+/// the ids serialized into `device-event` payloads (using the derive)
+/// from the ones the frontend's `data-control` grid and `as_str()`'s own
+/// callers use, so those controls' physical key presses never matched a
+/// grid cell and never visibly highlighted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ControlId {
     SmartInsert,
     Appnd,
@@ -162,10 +176,16 @@ impl ControlId {
         }
     }
 
-    /// Maps a raw key code from the `bmd-speededitor` crate to our
-    /// normalized `ControlId`. Returns `None` for `Key::None`.
-    pub fn from_bmd_key(key: bmd_speededitor::Key) -> Option<ControlId> {
-        use bmd_speededitor::Key;
+    /// Inverse of [`ControlId::as_str`]. `None` for anything else.
+    pub fn from_str(s: &str) -> Option<ControlId> {
+        ControlId::ALL.iter().copied().find(|c| c.as_str() == s)
+    }
+
+    /// Maps a raw key code from the vendored `bmd-speededitor` fork
+    /// (`crate::vendor`) to our normalized `ControlId`. Returns `None` for
+    /// `Key::None`.
+    pub fn from_bmd_key(key: crate::vendor::key::Key) -> Option<ControlId> {
+        use crate::vendor::key::Key;
         Some(match key {
             Key::None => return None,
             Key::SmartInsrt => ControlId::SmartInsert,
@@ -218,5 +238,18 @@ impl ControlId {
 impl fmt::Display for ControlId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl Serialize for ControlId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for ControlId {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        ControlId::from_str(&s).ok_or_else(|| de::Error::custom(format!("unknown control id: {s}")))
     }
 }

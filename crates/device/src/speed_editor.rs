@@ -1,23 +1,32 @@
 use crate::control::ControlId;
 use crate::event::ControlEvent;
+use crate::led::LedCommand;
 use crate::surface::{ControlSurface, DeviceError};
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
 /// `ControlSurface` implementation backed by the real Blackmagic Speed
-/// Editor, using the MIT-licensed `bmd-speededitor` crate for HID
-/// transport, device authentication and raw event decoding.
+/// Editor, using a vendored, modified fork of the MIT-licensed
+/// `bmd-speededitor` crate (`crate::vendor`) for HID transport, device
+/// authentication and raw event decoding.
 ///
-/// See `claude/docs/decisions/0001-speed-editor-driver.md` for why this
-/// dependency was chosen over reimplementing the HID protocol.
+/// See `claude/docs/decisions/0001-speed-editor-driver.md` for why that
+/// crate was originally chosen, and
+/// `claude/docs/decisions/0002-vendor-bmd-speededitor.md` for why it's
+/// vendored (rather than a normal dependency) here.
 pub struct SpeedEditorSurface {
     name: String,
+    led_tx: Sender<LedCommand>,
+    led_rx: Option<Receiver<LedCommand>>,
 }
 
 impl SpeedEditorSurface {
     pub fn new() -> Self {
+        let (led_tx, led_rx) = mpsc::channel();
         Self {
             name: "Speed Editor".to_string(),
+            led_tx,
+            led_rx: Some(led_rx),
         }
     }
 }
@@ -42,9 +51,18 @@ impl ControlSurface for SpeedEditorSurface {
         &self.name
     }
 
+    fn led_sender(&mut self) -> Option<Sender<LedCommand>> {
+        Some(self.led_tx.clone())
+    }
+
     fn run(&mut self, tx: Sender<ControlEvent>) -> Result<(), DeviceError> {
+        let led_rx = self
+            .led_rx
+            .take()
+            .expect("SpeedEditorSurface::run called more than once");
+
         let mut device =
-            bmd_speededitor::new().map_err(|e| DeviceError::Hid(format!("{e:?}")))?;
+            crate::vendor::new().map_err(|e| DeviceError::Hid(format!("{e:?}")))?;
 
         let tx = Arc::new(Mutex::new(tx));
 
@@ -94,7 +112,7 @@ impl ControlSurface for SpeedEditorSurface {
         }
 
         device
-            .run()
+            .run(&led_rx)
             .map_err(|e| DeviceError::Hid(format!("{e:?}")))
     }
 }
