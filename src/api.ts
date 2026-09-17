@@ -36,6 +36,7 @@ export const api = {
     invoke<void>("obs_connect", { host, port, password }),
   obsDisconnect: () => invoke<void>("obs_disconnect"),
   obsStatus: () => invoke<ObsStatus>("obs_status"),
+  obsSceneItems: (scene: string) => invoke<string[]>("obs_scene_items", { scene }),
 
   mockSend: (command: MockCommand) => invoke<void>("mock_send", { command }),
 

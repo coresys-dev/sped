@@ -1,6 +1,12 @@
+use obws::requests::inputs::{InputId, Volume};
+use obws::requests::scene_items::{Id as SceneItemId, SetEnabled};
+use obws::requests::scenes::SceneId;
 use obws::Client;
 use serde::Serialize;
-use sped_mapping::{Action, ActionError, ActionExecutor, ObsAction};
+use sped_mapping::{
+    Action, ActionError, ActionExecutor, MuteMode, ObsAction, RecordingMode, StartStopToggle,
+    StudioModeMode, VisibilityMode, VolumeMode,
+};
 use std::error::Error as StdError;
 use std::fmt::Write as _;
 use std::sync::{Arc, Mutex};
@@ -30,6 +36,7 @@ pub enum ObsStatus {
     Connecting,
     Connected {
         scenes: Vec<String>,
+        inputs: Vec<String>,
     },
     Error {
         message: String,
@@ -87,7 +94,13 @@ impl ObsIntegration {
                                 .collect()
                         })
                         .unwrap_or_default();
-                    Ok((client, scenes))
+                    let inputs = client
+                        .inputs()
+                        .list(None)
+                        .await
+                        .map(|inputs| inputs.into_iter().map(|input| input.id.name).collect())
+                        .unwrap_or_default();
+                    Ok((client, scenes, inputs))
                 }
                 Err(e) => Err(describe_error(&e)),
             };
@@ -96,8 +109,8 @@ impl ObsIntegration {
             // `.await`) so this future stays `Send`.
             let mut guard = state.lock().unwrap();
             match outcome {
-                Ok((client, scenes)) => {
-                    guard.status = ObsStatus::Connected { scenes };
+                Ok((client, scenes, inputs)) => {
+                    guard.status = ObsStatus::Connected { scenes, inputs };
                     guard.client = Some(Arc::new(client));
                 }
                 Err(message) => {
@@ -129,15 +142,120 @@ impl ObsIntegration {
                 ObsAction::SwitchScene { scene } => {
                     client.scenes().set_current_program_scene(scene.as_str()).await
                 }
-                ObsAction::StartRecording => client.recording().start().await,
-                ObsAction::StopRecording => client.recording().stop().await.map(|_| ()),
-                ObsAction::PauseRecording => client.recording().pause().await,
-                ObsAction::ResumeRecording => client.recording().resume().await,
-                ObsAction::StartStreaming => client.streaming().start().await,
-                ObsAction::StopStreaming => client.streaming().stop().await,
+                ObsAction::Recording { mode } => match mode {
+                    RecordingMode::Start => client.recording().start().await,
+                    RecordingMode::Stop => client.recording().stop().await.map(|_| ()),
+                    RecordingMode::Pause => client.recording().pause().await,
+                    RecordingMode::Resume => client.recording().resume().await,
+                    RecordingMode::Toggle => client.recording().toggle().await.map(|_| ()),
+                },
+                ObsAction::Streaming { mode } => match mode {
+                    StartStopToggle::Start => client.streaming().start().await,
+                    StartStopToggle::Stop => client.streaming().stop().await,
+                    StartStopToggle::Toggle => client.streaming().toggle().await.map(|_| ()),
+                },
+                ObsAction::VirtualCam { mode } => match mode {
+                    StartStopToggle::Start => client.virtual_cam().start().await,
+                    StartStopToggle::Stop => client.virtual_cam().stop().await,
+                    StartStopToggle::Toggle => client.virtual_cam().toggle().await.map(|_| ()),
+                },
+                ObsAction::StudioMode { mode } => match mode {
+                    StudioModeMode::Enable => client.ui().set_studio_mode_enabled(true).await,
+                    StudioModeMode::Disable => client.ui().set_studio_mode_enabled(false).await,
+                    StudioModeMode::Toggle => {
+                        let current = client
+                            .ui()
+                            .studio_mode_enabled()
+                            .await
+                            .map_err(|e| ActionError::Failed(describe_error(&e)))?;
+                        client.ui().set_studio_mode_enabled(!current).await
+                    }
+                    StudioModeMode::TriggerTransition => client.transitions().trigger().await,
+                },
+                ObsAction::SourceMute { source, mode } => {
+                    if source.is_empty() {
+                        return Err(ActionError::Failed("source not set".into()));
+                    }
+                    let input = InputId::Name(source.as_str());
+                    match mode {
+                        MuteMode::Mute => client.inputs().set_muted(input, true).await,
+                        MuteMode::Unmute => client.inputs().set_muted(input, false).await,
+                        MuteMode::Toggle => client.inputs().toggle_mute(input).await.map(|_| ()),
+                    }
+                }
+                ObsAction::SourceVisibility { scene, source, mode } => {
+                    if scene.is_empty() || source.is_empty() {
+                        return Err(ActionError::Failed("scene or source not set".into()));
+                    }
+                    let scene_id = SceneId::Name(scene.as_str());
+                    let item_id = client
+                        .scene_items()
+                        .id(SceneItemId {
+                            scene: scene_id,
+                            source: source.as_str(),
+                            search_offset: None,
+                        })
+                        .await
+                        .map_err(|e| ActionError::Failed(describe_error(&e)))?;
+                    let enabled = match mode {
+                        VisibilityMode::Show => true,
+                        VisibilityMode::Hide => false,
+                        VisibilityMode::Toggle => {
+                            let current = client
+                                .scene_items()
+                                .enabled(scene_id, item_id)
+                                .await
+                                .map_err(|e| ActionError::Failed(describe_error(&e)))?;
+                            !current
+                        }
+                    };
+                    client
+                        .scene_items()
+                        .set_enabled(SetEnabled { scene: scene_id, item_id, enabled })
+                        .await
+                }
+                ObsAction::SourceVolume { source, mode } => {
+                    if source.is_empty() {
+                        return Err(ActionError::Failed("source not set".into()));
+                    }
+                    let input = InputId::Name(source.as_str());
+                    match mode {
+                        VolumeMode::Absolute { percent } => {
+                            client.inputs().set_volume(input, Volume::Mul(percent / 100.0)).await
+                        }
+                        VolumeMode::Relative { delta_percent } => {
+                            let current = client
+                                .inputs()
+                                .volume(input)
+                                .await
+                                .map_err(|e| ActionError::Failed(describe_error(&e)))?;
+                            let new_mul = (current.mul + delta_percent / 100.0).clamp(0.0, 20.0);
+                            client.inputs().set_volume(input, Volume::Mul(new_mul)).await
+                        }
+                    }
+                }
             };
 
             result.map_err(|e| ActionError::Failed(describe_error(&e)))
+        })
+    }
+
+    /// Lists the names of every scene item (source) in `scene`, for the
+    /// Properties Panel's Source Visibility picker. Fetched on demand
+    /// rather than prefetched for every scene at connect time.
+    pub fn scene_items(&self, scene: String) -> Result<Vec<String>, String> {
+        let state = self.state.clone();
+        self.runtime.block_on(async move {
+            let client: Arc<Client> = {
+                let guard = state.lock().unwrap();
+                guard.client.clone().ok_or("OBS is not connected")?
+            };
+            client
+                .scene_items()
+                .list(SceneId::Name(scene.as_str()))
+                .await
+                .map(|items| items.into_iter().map(|item| item.source_name).collect())
+                .map_err(|e| describe_error(&e))
         })
     }
 }

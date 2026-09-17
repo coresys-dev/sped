@@ -116,10 +116,55 @@ fn load_profiles(dir: &Path) -> HashMap<String, Profile> {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) == Some("json") {
-            if let Ok(profile) = Profile::load(&path) {
-                map.insert(profile.name.clone(), profile);
+            match Profile::load(&path) {
+                Ok(profile) => {
+                    map.insert(profile.name.clone(), profile);
+                }
+                Err(err) => {
+                    // Don't let a corrupt/unparseable profile file be
+                    // mistaken for "no profiles exist yet" (which would
+                    // cause `AppState::new` to overwrite it with an empty
+                    // default profile). Move it out of the way instead of
+                    // silently dropping it.
+                    let backup_path = path.with_extension("json.bak");
+                    let _ = std::fs::rename(&path, &backup_path);
+                    eprintln!(
+                        "warning: failed to load profile {}: {err}; preserved as {}",
+                        path.display(),
+                        backup_path.display()
+                    );
+                }
             }
         }
     }
     map
+}
+
+#[cfg(test)]
+mod sanity_check_tests {
+    use super::*;
+
+    #[test]
+    fn corrupt_profile_is_preserved_not_dropped() {
+        let dir = std::env::temp_dir().join(format!(
+            "sped_state_test_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("Default.json");
+        std::fs::write(&path, r#"{"version": "not-a-number", "name": "Default"}"#).unwrap();
+
+        let loaded = load_profiles(&dir);
+        assert!(loaded.is_empty(), "corrupt profile should not load");
+
+        let backup = dir.join("Default.json.bak");
+        assert!(backup.exists(), "corrupt file should be renamed to .bak");
+        assert!(!path.exists(), "original corrupt path should be gone");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
