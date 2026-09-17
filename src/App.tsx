@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, onDeviceEvent } from "./api";
 import { ActionsSidebar } from "./components/ActionsSidebar";
 import { AppTitleBar } from "./components/AppTitleBar";
@@ -164,15 +164,35 @@ export default function App() {
     [saveMappingsForControl],
   );
 
+  // Rapid-fire edits (e.g. typing in a number input) would otherwise each
+  // trigger an independent read-modify-write disk round-trip, and
+  // overlapping calls can clobber each other's writes. Debounce so only
+  // the last edit within a short window is actually persisted. A single
+  // shared timer (not keyed per-control) is fine here: only one control is
+  // ever selected/edited in the Properties Panel at a time.
+  const updateActionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const updateActionInControl = useCallback(
-    async (control: ControlId, index: number, action: Action) => {
-      const profile = await api.getActiveProfile();
-      const existing = profile.mappings[control] ?? [];
-      const others = existing.filter((m) => !(m.trigger === "press" && m.modifier === "none"));
-      const current = existing.find((m) => m.trigger === "press" && m.modifier === "none");
-      if (!current) return;
-      const nextActions = current.actions.map((a, i) => (i === index ? action : a));
-      await saveMappingsForControl(control, [...others, { ...current, actions: nextActions }]);
+    (control: ControlId, index: number, action: Action) => {
+      if (updateActionTimer.current) {
+        clearTimeout(updateActionTimer.current);
+      }
+      updateActionTimer.current = setTimeout(() => {
+        updateActionTimer.current = null;
+        void (async () => {
+          try {
+            const profile = await api.getActiveProfile();
+            const existing = profile.mappings[control] ?? [];
+            const others = existing.filter((m) => !(m.trigger === "press" && m.modifier === "none"));
+            const current = existing.find((m) => m.trigger === "press" && m.modifier === "none");
+            if (!current) return;
+            const nextActions = current.actions.map((a, i) => (i === index ? action : a));
+            await saveMappingsForControl(control, [...others, { ...current, actions: nextActions }]);
+          } catch (err) {
+            console.error("Failed to save action update", err);
+          }
+        })();
+      }, 300);
     },
     [saveMappingsForControl],
   );

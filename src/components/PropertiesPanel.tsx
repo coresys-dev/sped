@@ -258,25 +258,32 @@ function ObsActionEditor({ action, obsStatus, onChange }: ObsActionEditorProps) 
             <input
               type="number"
               className={SELECT_CLASS}
+              min={0}
+              step={1}
               value={action.mode.percent}
-              onChange={(e) =>
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n)) return;
                 onChange({
                   ...action,
-                  mode: { kind: "absolute", percent: Number(e.target.value) },
-                })
-              }
+                  mode: { kind: "absolute", percent: n },
+                });
+              }}
             />
           ) : (
             <input
               type="number"
               className={SELECT_CLASS}
+              step={1}
               value={action.mode.delta_percent}
-              onChange={(e) =>
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n)) return;
                 onChange({
                   ...action,
-                  mode: { kind: "relative", delta_percent: Number(e.target.value) },
-                })
-              }
+                  mode: { kind: "relative", delta_percent: n },
+                });
+              }}
             />
           )}
         </div>

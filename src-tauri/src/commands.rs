@@ -226,8 +226,11 @@ pub fn obs_status(state: State<AppState>) -> ObsStatus {
 }
 
 #[tauri::command]
-pub fn obs_scene_items(state: State<AppState>, scene: String) -> Result<Vec<String>, String> {
-    state.obs.scene_items(scene)
+pub async fn obs_scene_items(state: State<'_, AppState>, scene: String) -> Result<Vec<String>, String> {
+    let obs = state.obs.clone();
+    tauri::async_runtime::spawn_blocking(move || obs.scene_items(scene))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
