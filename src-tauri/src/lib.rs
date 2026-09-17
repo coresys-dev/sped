@@ -55,6 +55,7 @@ pub fn run() {
             commands::get_leds,
             commands::set_led,
             commands::clear_leds,
+            commands::set_led_bit,
             window_chrome::position_traffic_lights,
         ])
         .run(tauri::generate_context!())

@@ -49,6 +49,7 @@ export const api = {
   getLeds: () => invoke<LedId[]>("get_leds"),
   setLed: (led: LedId, on: boolean) => invoke<void>("set_led", { led, on }),
   clearLeds: () => invoke<void>("clear_leds"),
+  setLedBit: (bit: number, on: boolean) => invoke<void>("set_led_bit", { bit, on }),
 };
 
 export function onDeviceEvent(handler: (event: ControlEvent) => void): Promise<UnlistenFn> {

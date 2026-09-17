@@ -203,12 +203,13 @@ export function SettingsModal({
 
       {tab === "device" && (
         <div className="flex flex-col gap-4">
-          <SidebarTabsDialogRow label={`Jog / shuttle sensitivity (${settings.jog.sensitivity.toFixed(2)}×)`}>
+          <SidebarTabsDialogRow label={`Jog / shuttle sensitivity (${settings.jog.sensitivity.toFixed(4)}×)`}>
             <Slider
               value={settings.jog.sensitivity}
-              min={0.05}
-              max={3}
-              step={0.05}
+              min={0.0025}
+              max={0.1}
+              step={0.0005}
+              showNumberInput
               ariaLabel="Jog and shuttle sensitivity"
               onChange={(sensitivity) => patch({ ...settings, jog: { ...settings.jog, sensitivity } })}
             />

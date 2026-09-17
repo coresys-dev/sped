@@ -70,10 +70,22 @@ pub enum ControlId {
 
     /// Wheel-mode selector buttons. Pressing one of these changes how
     /// `ControlEvent::Jog` / `ControlEvent::Shuttle` deltas should be
-    /// interpreted by the mapping engine.
+    /// interpreted by the mapping engine. Each lights up on real hardware
+    /// to show which mode is active, but that indicator is driven
+    /// autonomously by the device's own firmware, not by the host -- see
+    /// `sped_device::LedId`'s doc comment. Not in `LedId` for that reason.
     Shuttle,
     Jog,
     Scroll,
+
+    /// Synthetic id for the physical rotary wheel's *motion* while in jog
+    /// mode (`ControlEvent::Jog { delta }`), as opposed to [`Self::Jog`]
+    /// above, which is the button *press* that selects jog mode. Never
+    /// produced by [`Self::from_bmd_key`] (no real key reports it) --
+    /// exists only as a `Profile::mappings` storage key and frontend
+    /// drop-target id, resolved by `sped_mapping::MappingEngine`'s
+    /// `Trigger::Jog*` handling, not by a `Pressed`/`Released` event.
+    JogWheel,
 }
 
 impl ControlId {
@@ -124,6 +136,7 @@ impl ControlId {
         ControlId::Shuttle,
         ControlId::Jog,
         ControlId::Scroll,
+        ControlId::JogWheel,
     ];
 
     /// Stable identifier used in JSON payloads and profile files, matching
@@ -146,7 +159,7 @@ impl ControlId {
             ControlId::TransDur => "trans-dur",
             ControlId::Cut => "cut",
             ControlId::Dis => "dis",
-            ControlId::SmthCut => "smooth-cut",
+            ControlId::SmthCut => "smth-cut",
             ControlId::Esc => "esc",
             ControlId::SyncBin => "sync-bin",
             ControlId::AudioLevel => "audio-level",
@@ -173,6 +186,7 @@ impl ControlId {
             ControlId::Shuttle => "shuttle",
             ControlId::Jog => "jog",
             ControlId::Scroll => "scroll",
+            ControlId::JogWheel => "jog-wheel",
         }
     }
 

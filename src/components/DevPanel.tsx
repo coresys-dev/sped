@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useState } from "react";
 import { api } from "../api";
 import { Chip } from "../cscl-ui/primitives/Chip";
 import { IconButton } from "../cscl-ui/primitives/IconButton";
@@ -35,6 +36,18 @@ function describe(event: ControlEvent): string {
 
 export function DevPanel({ deviceStatus, log, litLeds, onToggleLed, onClearLeds, onClose }: DevPanelProps) {
   const mockActive = deviceStatus?.mock ?? false;
+  const [litBits, setLitBits] = useState<Set<number>>(new Set());
+
+  const toggleBit = (bit: number) => {
+    const on = !litBits.has(bit);
+    api.setLedBit(bit, on).catch(() => {});
+    setLitBits((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(bit);
+      else next.delete(bit);
+      return next;
+    });
+  };
 
   return (
     <div className="animate-chrome-in fixed right-4 bottom-4 z-40 flex max-h-[26rem] w-80 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-float">
@@ -78,6 +91,33 @@ export function DevPanel({ deviceStatus, log, litLeds, onToggleLed, onClearLeds,
                 Clear
               </Chip>
             </div>
+          </div>
+          <div className="border-b border-border p-2">
+            <div className="mb-1 text-[10px] tracking-wide text-text-muted uppercase">LED raw bit tester</div>
+            <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface-raised p-1">
+              {Array.from({ length: 32 }, (_, bit) => bit)
+                .filter((bit) => bit > 17)
+                .map((bit) => (
+                  <Chip key={bit} active={litBits.has(bit)} onClick={() => toggleBit(bit)}>
+                    {bit}
+                  </Chip>
+                ))}
+              <Chip
+                active={false}
+                onClick={() => {
+                  for (const bit of litBits) api.setLedBit(bit, false).catch(() => {});
+                  setLitBits(new Set());
+                }}
+              >
+                Clear
+              </Chip>
+            </div>
+            <p className="mt-1 text-[10px] leading-relaxed text-text-muted">
+              Bits 0-17 are already mapped (see chips above). Bits 18-31 were exhaustively probed
+              looking for SHTL/JOG/SCRL's mode-indicator LEDs -- none affect them, confirming
+              those are driven by the device's own firmware, not the host (see `LedId`'s doc
+              comment). Kept here for probing any other future unknowns.
+            </p>
           </div>
         </>
       )}

@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { LED_IDS, type ControlId, type LedId } from "../types";
+import { JOG_WHEEL_CONTROL_ID, LED_IDS, type ControlId, type LedId } from "../types";
 
 const LED_ID_SET = new Set<string>(LED_IDS);
 
@@ -45,7 +45,7 @@ const TRIM_KEYS: KeyDef[] = [
   { id: "trans-dur", label: <>TRANS DUR</>, sub: "SET", col: "5 / span 2", row: "10 / span 2" },
   { id: "cut", label: "CUT", col: "1 / span 2", row: "12 / span 2" },
   { id: "dis", label: "DIS", col: "3 / span 2", row: "12 / span 2" },
-  { id: "smooth-cut", label: <>SMTH CUT</>, col: "5 / span 2", row: "12 / span 2" },
+  { id: "smth-cut", label: <>SMTH CUT</>, col: "5 / span 2", row: "12 / span 2" },
 ];
 
 const TRANSPORT_KEYS: KeyDef[] = [
@@ -231,18 +231,27 @@ export function SpeedEditor({
           />
         ))}
 
-        <div
+        <button
+          type="button"
           className="grid place-items-center rounded-full border-2 transition-shadow duration-150"
           style={{
             ...JOG_WHEEL_AREA,
-            borderColor: jogActive ? "var(--color-accent)" : "var(--color-border)",
+            borderColor:
+              selected === JOG_WHEEL_CONTROL_ID
+                ? "var(--color-accent)"
+                : jogActive
+                  ? "var(--color-accent)"
+                  : "var(--color-border)",
             boxShadow: jogActive ? "0 0 16px -2px var(--color-accent)" : undefined,
-            background: "var(--color-surface-hover)",
+            background:
+              selected === JOG_WHEEL_CONTROL_ID ? "var(--color-accent-muted)" : "var(--color-surface-hover)",
           }}
           role="slider"
           aria-label="Jog / shuttle wheel"
+          aria-pressed={selected === JOG_WHEEL_CONTROL_ID}
           aria-valuenow={Math.round(jogAngle) % 360}
-          title="Jog wheel"
+          title="Select to map wheel rotation to actions"
+          onClick={() => onSelect(JOG_WHEEL_CONTROL_ID)}
         >
           <div
             className="relative h-full w-full rounded-full"
@@ -253,7 +262,7 @@ export function SpeedEditor({
               style={{ background: jogActive ? "var(--color-accent)" : "var(--color-text-muted)" }}
             />
           </div>
-        </div>
+        </button>
       </div>
 
       <p className="mt-3 text-center text-[11px] text-text-muted">

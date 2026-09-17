@@ -284,3 +284,11 @@ pub fn set_led(state: State<AppState>, led: LedId, on: bool) -> Result<(), Strin
 pub fn clear_leds(state: State<AppState>) -> Result<(), String> {
     state.leds.clear_all().map_err(|e| e.to_string())
 }
+
+/// Dev-only: sets an arbitrary LED output-report bit, for discovering
+/// unmapped bits (e.g. SHTL/JOG/SCRL) against real hardware. See
+/// `LedCommand::SetBit`.
+#[tauri::command]
+pub fn set_led_bit(state: State<AppState>, bit: u32, on: bool) -> Result<(), String> {
+    state.leds.set_bit(bit, on).map_err(|e| e.to_string())
+}

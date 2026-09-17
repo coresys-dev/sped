@@ -82,13 +82,38 @@ export type ObsAction =
 
 export type Action = KeyboardAction | ObsAction;
 
-export type Trigger = "press" | "release" | "hold" | "double_press" | "long_press";
+export type Trigger =
+  | "press"
+  | "release"
+  | "hold"
+  | "double_press"
+  | "long_press"
+  | "jog_clockwise"
+  | "jog_counter_clockwise"
+  | "jog_continuous";
 export type Modifier = "none" | "shift" | "alt" | "ctrl";
+
+/** The synthetic `ControlId` for the wheel's *motion* while in jog mode
+ * (`jog_clockwise`/`jog_counter_clockwise`/`jog_continuous` mappings) --
+ * distinct from `"jog"`, the button press that selects jog mode. See
+ * `sped_device::ControlId::JogWheel`'s doc comment. */
+export const JOG_WHEEL_CONTROL_ID: ControlId = "jog-wheel";
 
 export interface Mapping {
   trigger: Trigger;
   modifier: Modifier;
   actions: Action[];
+  /** Only meaningful for `jog_clockwise`/`jog_counter_clockwise`: wheel
+   * rotation needed in that direction before this mapping fires once. */
+  threshold: number;
+  /** Only meaningful for `jog_continuous`: multiplies the raw per-event
+   * wheel delta into the mapped action's continuous parameter (currently
+   * only `source_volume`'s relative `delta_percent`). */
+  amount_per_tick: number;
+}
+
+export function simpleMapping(actions: Action[]): Mapping {
+  return { trigger: "press", modifier: "none", actions, threshold: 10, amount_per_tick: 1.0 };
 }
 
 export interface Profile {

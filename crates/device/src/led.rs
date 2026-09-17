@@ -3,12 +3,18 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 
-/// Physical controls that have a controllable LED. Not every key does --
-/// per Blackmagic's own protocol notes (see
-/// `claude/docs/decisions/0001-speed-editor-driver.md`), the transport,
-/// trim and SOURCE/TIMELINE/SHTL/JOG/SCRL keys have no LED on real
-/// hardware, only these do. Bit positions match the output report format
-/// exactly (`SpeedEditorLed` in `smunaut/blackmagic-misc`, Apache-2.0), so
+/// Physical controls whose LED the *host* can drive. Not every lit key on
+/// the device is one of these -- SOURCE/TIMELINE and the transport/trim
+/// keys genuinely have no LED at all, but SHTL/JOG/SCRL *do* have one
+/// (confirmed on real hardware: the device highlights whichever wheel
+/// mode is active). It just isn't one of these: the output report's LED
+/// bitfield is a fixed 32 bits (see `crate::vendor`'s `light_leds`), bits
+/// 0-17 are this enum's, and bits 18-31 were exhaustively probed via the
+/// DevPanel's raw-bit tester against real hardware with no effect on
+/// SHTL/JOG/SCRL -- so that indicator is driven autonomously by the
+/// device's own firmware, not exposed to the host at all. Bit positions
+/// for the controls below match the output report format exactly
+/// (`SpeedEditorLed` in `smunaut/blackmagic-misc`, Apache-2.0), so
 /// `crate::vendor` can use `bit()` directly with no separate LED-id enum
 /// of its own.
 ///
@@ -137,6 +143,11 @@ impl<'de> Deserialize<'de> for LedId {
 pub enum LedCommand {
     Set(LedId, bool),
     SetMany(Vec<LedId>, bool),
+    /// Sets an arbitrary output-report bit by index (0-31), bypassing
+    /// `LedId` entirely. Only for interactively discovering unmapped LED
+    /// bits (e.g. SHTL/JOG/SCRL, not currently in `LedId`) from the
+    /// DevPanel against real hardware -- never used by normal app code.
+    SetBit(u32, bool),
     ClearAll,
 }
 
@@ -177,6 +188,11 @@ impl LedController {
 
     pub fn clear_all(&self) -> Result<(), DeviceError> {
         self.send(LedCommand::ClearAll)
+    }
+
+    /// See [`LedCommand::SetBit`].
+    pub fn set_bit(&self, bit: u32, on: bool) -> Result<(), DeviceError> {
+        self.send(LedCommand::SetBit(bit, on))
     }
 
     fn send(&self, cmd: LedCommand) -> Result<(), DeviceError> {

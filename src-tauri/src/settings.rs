@@ -29,9 +29,10 @@ impl Default for ObsSettings {
 #[serde(rename_all = "camelCase")]
 pub struct JogSettings {
     /// Multiplier applied to raw wheel deltas. 1.0 = hardware-reported
-    /// value untouched. Default (0.5) is deliberately tame -- the raw
-    /// deltas from the wheel are large enough that 1.0 reads as far too
-    /// sensitive in practice.
+    /// value untouched. Raw deltas from the wheel are large enough that
+    /// even 0.05 (the old slider's minimum) still read as far too
+    /// sensitive in practice, so the usable range lives well below 1.0 --
+    /// default 0.05, UI range roughly 0.0025-0.1 (see `SettingsModal`).
     pub sensitivity: f32,
     pub invert: bool,
     /// Raw per-event delta magnitude at or below which a jog/shuttle event
@@ -43,7 +44,7 @@ pub struct JogSettings {
 impl Default for JogSettings {
     fn default() -> Self {
         Self {
-            sensitivity: 0.5,
+            sensitivity: 0.05,
             invert: false,
             deadzone: 0,
         }

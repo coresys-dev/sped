@@ -234,6 +234,10 @@ impl SpeedEditor {
                     }
                     self.light_leds()?;
                 }
+                Ok(LedCommand::SetBit(bit, on)) => {
+                    self.apply_led_bit(bit, on);
+                    self.light_leds()?;
+                }
                 Ok(LedCommand::ClearAll) => {
                     self.current_led_mask = 0;
                     self.light_leds()?;

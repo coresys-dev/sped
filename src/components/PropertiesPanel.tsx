@@ -1,22 +1,31 @@
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent, type ReactNode } from "react";
 import { api } from "../api";
 import { ShortcutRecorder } from "../cscl-ui/inputs/ShortcutRecorder";
 import { IconButton } from "../cscl-ui/primitives/IconButton";
 import {
+  JOG_WHEEL_CONTROL_ID,
   actionCategory,
   actionLabel,
   comboStringToKeys,
   type Action,
   type ControlId,
+  type Mapping,
   type MuteMode,
   type ObsAction,
   type ObsStatus,
   type RecordingMode,
   type StartStopToggle,
   type StudioModeMode,
+  type Trigger,
   type VisibilityMode,
 } from "../types";
+
+export interface JogWheelMappings {
+  clockwise: Mapping | undefined;
+  counterClockwise: Mapping | undefined;
+  continuous: Mapping | undefined;
+}
 
 export interface PropertiesPanelProps {
   control: ControlId | null;
@@ -25,6 +34,11 @@ export interface PropertiesPanelProps {
   onAddAction: (action: Action) => void;
   onRemoveAction: (index: number) => void;
   onUpdateAction: (index: number, action: Action) => void;
+  jogWheelMappings: JogWheelMappings;
+  onAddJogAction: (trigger: Trigger, action: Action) => void;
+  onRemoveJogAction: (trigger: Trigger, index: number) => void;
+  onUpdateJogAction: (trigger: Trigger, index: number, action: Action) => void;
+  onUpdateJogConfig: (trigger: Trigger, patch: Partial<Pick<Mapping, "threshold" | "amount_per_tick">>) => void;
 }
 
 function controlDisplayName(id: ControlId): string {
@@ -291,6 +305,233 @@ function ObsActionEditor({ action, obsStatus, onChange }: ObsActionEditorProps) 
   }
 }
 
+interface AssignedActionsProps {
+  actions: Action[];
+  obsStatus: ObsStatus;
+  onAddAction: (action: Action) => void;
+  onRemoveAction: (index: number) => void;
+  onUpdateAction: (index: number, action: Action) => void;
+  /** Renders as a self-contained drop target with its own outline; false
+   * when an ancestor (the jog-wheel-less single-control panel) already
+   * handles drag/drop for the whole panel. */
+  ownDropTarget?: boolean;
+}
+
+/** The "assigned actions" list + editors + keyboard-shortcut recorder,
+ * factored out so the jog wheel can show three of these (one per
+ * trigger) instead of the single one every other control gets. */
+function AssignedActions({
+  actions,
+  obsStatus,
+  onAddAction,
+  onRemoveAction,
+  onUpdateAction,
+  ownDropTarget,
+}: AssignedActionsProps) {
+  const [recorderKey, setRecorderKey] = useState(0);
+  const [dropTarget, setDropTarget] = useState(false);
+
+  const dropHandlers = ownDropTarget
+    ? {
+        onDragOver: (e: DragEvent) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setDropTarget(true);
+        },
+        onDragLeave: () => setDropTarget(false),
+        onDrop: (e: DragEvent) => {
+          e.preventDefault();
+          setDropTarget(false);
+          const payload = e.dataTransfer.getData("application/x-sped-action");
+          if (!payload) return;
+          try {
+            onAddAction(JSON.parse(payload) as Action);
+          } catch {
+            // Ignore malformed drag payloads (e.g. from outside the app).
+          }
+        },
+      }
+    : {};
+
+  return (
+    <div
+      className={ownDropTarget ? (dropTarget ? "rounded-md outline-2 outline-accent outline-offset-1" : "") : ""}
+      {...dropHandlers}
+    >
+      {actions.length === 0 && <div className="mb-3 text-xs text-text-muted">No actions assigned</div>}
+
+      <ul className="mb-3 flex flex-col gap-1.5">
+        {actions.map((action, index) => (
+          <li
+            key={index}
+            className="flex flex-col gap-1.5 rounded-md border border-border bg-surface-raised px-2.5 py-2"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] tracking-wide text-text-muted uppercase">
+                  {actionCategory(action)}
+                </div>
+                <div className="text-sm font-medium text-text">{actionLabel(action)}</div>
+              </div>
+              <IconButton
+                aria-label="Remove action"
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemoveAction(index)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </IconButton>
+            </div>
+            {action.kind === "obs" && (
+              <ObsActionEditor
+                action={action}
+                obsStatus={obsStatus}
+                onChange={(next) => onUpdateAction(index, next)}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <div className="mb-2 flex flex-col gap-1.5">
+        <span className="text-[11px] text-text-muted">Keyboard shortcut</span>
+        <ShortcutRecorder
+          key={recorderKey}
+          value="+ Add keyboard shortcut…"
+          recordingLabel="Press keys…"
+          onChange={(combo) => {
+            onAddAction({ kind: "keyboard", keys: comboStringToKeys(combo) });
+            setRecorderKey((k) => k + 1);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const JOG_NUMBER_CLASS =
+  "w-20 rounded-md border border-border bg-surface-raised px-2 py-1 text-xs text-text focus:border-accent focus:outline-none";
+
+interface JogWheelPanelProps {
+  obsStatus: ObsStatus;
+  jogWheelMappings: JogWheelMappings;
+  onAddJogAction: (trigger: Trigger, action: Action) => void;
+  onRemoveJogAction: (trigger: Trigger, index: number) => void;
+  onUpdateJogAction: (trigger: Trigger, index: number, action: Action) => void;
+  onUpdateJogConfig: (trigger: Trigger, patch: Partial<Pick<Mapping, "threshold" | "amount_per_tick">>) => void;
+}
+
+/** The wheel has no press/release of its own -- rotating it fires one of
+ * three independent triggers instead, each configured and populated with
+ * actions separately. */
+function JogWheelPanel({
+  obsStatus,
+  jogWheelMappings,
+  onAddJogAction,
+  onRemoveJogAction,
+  onUpdateJogAction,
+  onUpdateJogConfig,
+}: JogWheelPanelProps) {
+  const sections: {
+    trigger: Trigger;
+    title: string;
+    hint: string;
+    mapping: Mapping | undefined;
+    config: ReactNode;
+  }[] = [
+    {
+      trigger: "jog_clockwise",
+      title: "Clockwise",
+      hint: "Fires once every N ticks turned clockwise.",
+      mapping: jogWheelMappings.clockwise,
+      config: (
+        <label className="flex items-center gap-1.5 text-[11px] text-text-muted">
+          Threshold (ticks)
+          <input
+            type="number"
+            min={1}
+            step={1}
+            className={JOG_NUMBER_CLASS}
+            value={jogWheelMappings.clockwise?.threshold ?? 10}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isFinite(n) || n < 1) return;
+              onUpdateJogConfig("jog_clockwise", { threshold: n });
+            }}
+          />
+        </label>
+      ),
+    },
+    {
+      trigger: "jog_counter_clockwise",
+      title: "Counter-clockwise",
+      hint: "Fires once every N ticks turned counter-clockwise.",
+      mapping: jogWheelMappings.counterClockwise,
+      config: (
+        <label className="flex items-center gap-1.5 text-[11px] text-text-muted">
+          Threshold (ticks)
+          <input
+            type="number"
+            min={1}
+            step={1}
+            className={JOG_NUMBER_CLASS}
+            value={jogWheelMappings.counterClockwise?.threshold ?? 10}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isFinite(n) || n < 1) return;
+              onUpdateJogConfig("jog_counter_clockwise", { threshold: n });
+            }}
+          />
+        </label>
+      ),
+    },
+    {
+      trigger: "jog_continuous",
+      title: "Continuous",
+      hint: "Fires on every tick. For Source Volume (relative), each tick's delta is multiplied by this amount instead of using the action's own configured delta.",
+      mapping: jogWheelMappings.continuous,
+      config: (
+        <label className="flex items-center gap-1.5 text-[11px] text-text-muted">
+          Amount / tick
+          <input
+            type="number"
+            step={0.1}
+            className={JOG_NUMBER_CLASS}
+            value={jogWheelMappings.continuous?.amount_per_tick ?? 1}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isFinite(n)) return;
+              onUpdateJogConfig("jog_continuous", { amount_per_tick: n });
+            }}
+          />
+        </label>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-5">
+      {sections.map((s) => (
+        <div key={s.trigger}>
+          <div className="mb-1 text-xs font-medium tracking-wide text-text-muted uppercase">{s.title}</div>
+          <p className="mb-2 text-[11px] leading-relaxed text-text-muted">{s.hint}</p>
+          {s.config}
+          <div className="mt-2">
+            <AssignedActions
+              actions={s.mapping?.actions ?? []}
+              obsStatus={obsStatus}
+              onAddAction={(action) => onAddJogAction(s.trigger, action)}
+              onRemoveAction={(index) => onRemoveJogAction(s.trigger, index)}
+              onUpdateAction={(index, action) => onUpdateJogAction(s.trigger, index, action)}
+              ownDropTarget
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function PropertiesPanel({
   control,
   actions,
@@ -298,8 +539,13 @@ export function PropertiesPanel({
   onAddAction,
   onRemoveAction,
   onUpdateAction,
+  jogWheelMappings,
+  onAddJogAction,
+  onRemoveJogAction,
+  onUpdateJogAction,
+  onUpdateJogConfig,
 }: PropertiesPanelProps) {
-  const [recorderKey, setRecorderKey] = useState(0);
+  const isJogWheel = control === JOG_WHEEL_CONTROL_ID;
   const [dropTarget, setDropTarget] = useState(false);
 
   return (
@@ -311,7 +557,7 @@ export function PropertiesPanel({
         .filter(Boolean)
         .join(" ")}
       onDragOver={(e) => {
-        if (!control) return;
+        if (!control || isJogWheel) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "copy";
         setDropTarget(true);
@@ -320,7 +566,7 @@ export function PropertiesPanel({
       onDrop={(e) => {
         e.preventDefault();
         setDropTarget(false);
-        if (!control) return;
+        if (!control || isJogWheel) return;
         const payload = e.dataTransfer.getData("application/x-sped-action");
         if (!payload) return;
         try {
@@ -332,6 +578,18 @@ export function PropertiesPanel({
     >
       {!control ? (
         <div className="text-xs text-text-muted">Select a control</div>
+      ) : isJogWheel ? (
+        <>
+          <div className="mb-4 text-base font-semibold tracking-wide text-text">JOG WHEEL</div>
+          <JogWheelPanel
+            obsStatus={obsStatus}
+            jogWheelMappings={jogWheelMappings}
+            onAddJogAction={onAddJogAction}
+            onRemoveJogAction={onRemoveJogAction}
+            onUpdateJogAction={onUpdateJogAction}
+            onUpdateJogConfig={onUpdateJogConfig}
+          />
+        </>
       ) : (
         <>
           <div className="mb-4 text-base font-semibold tracking-wide text-text">
@@ -342,55 +600,13 @@ export function PropertiesPanel({
             Assigned actions
           </div>
 
-          {actions.length === 0 && (
-            <div className="mb-3 text-xs text-text-muted">No actions assigned</div>
-          )}
-
-          <ul className="mb-3 flex flex-col gap-1.5">
-            {actions.map((action, index) => (
-              <li
-                key={index}
-                className="flex flex-col gap-1.5 rounded-md border border-border bg-surface-raised px-2.5 py-2"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] tracking-wide text-text-muted uppercase">
-                      {actionCategory(action)}
-                    </div>
-                    <div className="text-sm font-medium text-text">{actionLabel(action)}</div>
-                  </div>
-                  <IconButton
-                    aria-label="Remove action"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRemoveAction(index)}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </IconButton>
-                </div>
-                {action.kind === "obs" && (
-                  <ObsActionEditor
-                    action={action}
-                    obsStatus={obsStatus}
-                    onChange={(next) => onUpdateAction(index, next)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-
-          <div className="mb-4 flex flex-col gap-1.5">
-            <span className="text-[11px] text-text-muted">Keyboard shortcut</span>
-            <ShortcutRecorder
-              key={recorderKey}
-              value="+ Add keyboard shortcut…"
-              recordingLabel="Press keys…"
-              onChange={(combo) => {
-                onAddAction({ kind: "keyboard", keys: comboStringToKeys(combo) });
-                setRecorderKey((k) => k + 1);
-              }}
-            />
-          </div>
+          <AssignedActions
+            actions={actions}
+            obsStatus={obsStatus}
+            onAddAction={onAddAction}
+            onRemoveAction={onRemoveAction}
+            onUpdateAction={onUpdateAction}
+          />
 
           <p className="text-[11px] leading-relaxed text-text-muted">
             Drag an OBS action from the sidebar onto this control, or record a keyboard shortcut

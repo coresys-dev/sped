@@ -11,8 +11,10 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import { SpeedEditor } from "./components/SpeedEditor";
 import {
+  JOG_WHEEL_CONTROL_ID,
   LED_CAM_GROUP,
   LED_IDS,
+  simpleMapping,
   type Action,
   type AppSettings,
   type ControlEvent,
@@ -22,11 +24,11 @@ import {
   type Mapping,
   type ObsStatus,
   type Profile,
+  type Trigger,
 } from "./types";
 
 const LED_ID_SET = new Set<string>(LED_IDS);
 
-const DEV_MODE = import.meta.env.DEV;
 /** Degrees of visual rotation per unit of (sensitivity-scaled) jog delta.
  * Purely a feel constant for the visualizer, not a hardware value. */
 const DEGREES_PER_JOG_UNIT = 6;
@@ -48,7 +50,6 @@ export default function App() {
   const settingsRef = useRef<AppSettings | null>(null);
   const saveSettingsTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const [devPanelOpen, setDevPanelOpen] = useState(DEV_MODE);
   const [eventLog, setEventLog] = useState<{ time: string; event: ControlEvent }[]>([]);
   const [litLeds, setLitLeds] = useState<Set<LedId>>(new Set());
 
@@ -92,7 +93,6 @@ export default function App() {
     api
       .getSettings()
       .then((s) => {
-        setDevPanelOpen((open) => open || s.general.debugOverlay);
         settingsRef.current = s;
         setSettings(s);
       })
@@ -185,6 +185,16 @@ export default function App() {
   );
   const actionsForSelected = primaryMapping?.actions ?? [];
 
+  const jogWheelMappings = useMemo(() => {
+    const list = activeProfile?.mappings[JOG_WHEEL_CONTROL_ID] ?? [];
+    const find = (trigger: Trigger) => list.find((m) => m.trigger === trigger && m.modifier === "none");
+    return {
+      clockwise: find("jog_clockwise"),
+      counterClockwise: find("jog_counter_clockwise"),
+      continuous: find("jog_continuous"),
+    };
+  }, [activeProfile]);
+
   const assignedControls = useMemo(() => {
     const set = new Set<ControlId>();
     if (activeProfile) {
@@ -204,25 +214,25 @@ export default function App() {
   );
 
   const addActionToControl = useCallback(
-    async (control: ControlId, action: Action) => {
+    async (control: ControlId, action: Action, trigger: Trigger = "press") => {
       const profile = await api.getActiveProfile();
       const existing = profile.mappings[control] ?? [];
-      const others = existing.filter((m) => !(m.trigger === "press" && m.modifier === "none"));
-      const current = existing.find((m) => m.trigger === "press" && m.modifier === "none");
+      const others = existing.filter((m) => !(m.trigger === trigger && m.modifier === "none"));
+      const current = existing.find((m) => m.trigger === trigger && m.modifier === "none");
       const updated: Mapping = current
         ? { ...current, actions: [...current.actions, action] }
-        : { trigger: "press", modifier: "none", actions: [action] };
+        : { ...simpleMapping([action]), trigger };
       await saveMappingsForControl(control, [...others, updated]);
     },
     [saveMappingsForControl],
   );
 
   const removeActionFromControl = useCallback(
-    async (control: ControlId, index: number) => {
+    async (control: ControlId, index: number, trigger: Trigger = "press") => {
       const profile = await api.getActiveProfile();
       const existing = profile.mappings[control] ?? [];
-      const others = existing.filter((m) => !(m.trigger === "press" && m.modifier === "none"));
-      const current = existing.find((m) => m.trigger === "press" && m.modifier === "none");
+      const others = existing.filter((m) => !(m.trigger === trigger && m.modifier === "none"));
+      const current = existing.find((m) => m.trigger === trigger && m.modifier === "none");
       if (!current) return;
       const nextActions = current.actions.filter((_, i) => i !== index);
       const updated = nextActions.length > 0 ? [{ ...current, actions: nextActions }] : [];
@@ -240,7 +250,7 @@ export default function App() {
   const updateActionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateActionInControl = useCallback(
-    (control: ControlId, index: number, action: Action) => {
+    (control: ControlId, index: number, action: Action, trigger: Trigger = "press") => {
       if (updateActionTimer.current) {
         clearTimeout(updateActionTimer.current);
       }
@@ -250,13 +260,43 @@ export default function App() {
           try {
             const profile = await api.getActiveProfile();
             const existing = profile.mappings[control] ?? [];
-            const others = existing.filter((m) => !(m.trigger === "press" && m.modifier === "none"));
-            const current = existing.find((m) => m.trigger === "press" && m.modifier === "none");
+            const others = existing.filter((m) => !(m.trigger === trigger && m.modifier === "none"));
+            const current = existing.find((m) => m.trigger === trigger && m.modifier === "none");
             if (!current) return;
             const nextActions = current.actions.map((a, i) => (i === index ? action : a));
             await saveMappingsForControl(control, [...others, { ...current, actions: nextActions }]);
           } catch (err) {
             console.error("Failed to save action update", err);
+          }
+        })();
+      }, 300);
+    },
+    [saveMappingsForControl],
+  );
+
+  // Only meaningful for the jog wheel's three triggers -- edits `threshold`
+  // (jog_clockwise/jog_counter_clockwise) or `amount_per_tick`
+  // (jog_continuous) on the mapping in place, creating it (with no
+  // actions yet) if the user configures it before dropping an action.
+  const updateJogMappingConfig = useCallback(
+    (trigger: Trigger, patch: Partial<Pick<Mapping, "threshold" | "amount_per_tick">>) => {
+      if (updateActionTimer.current) {
+        clearTimeout(updateActionTimer.current);
+      }
+      updateActionTimer.current = setTimeout(() => {
+        updateActionTimer.current = null;
+        void (async () => {
+          try {
+            const profile = await api.getActiveProfile();
+            const existing = profile.mappings[JOG_WHEEL_CONTROL_ID] ?? [];
+            const others = existing.filter((m) => !(m.trigger === trigger && m.modifier === "none"));
+            const current = existing.find((m) => m.trigger === trigger && m.modifier === "none");
+            const updated: Mapping = current
+              ? { ...current, ...patch }
+              : { ...simpleMapping([]), trigger, ...patch };
+            await saveMappingsForControl(JOG_WHEEL_CONTROL_ID, [...others, updated]);
+          } catch (err) {
+            console.error("Failed to save jog mapping config", err);
           }
         })();
       }, 300);
@@ -353,6 +393,13 @@ export default function App() {
           onAddAction={(action) => selected && addActionToControl(selected, action)}
           onRemoveAction={(index) => selected && removeActionFromControl(selected, index)}
           onUpdateAction={(index, action) => selected && updateActionInControl(selected, index, action)}
+          jogWheelMappings={jogWheelMappings}
+          onAddJogAction={(trigger, action) => addActionToControl(JOG_WHEEL_CONTROL_ID, action, trigger)}
+          onRemoveJogAction={(trigger, index) => removeActionFromControl(JOG_WHEEL_CONTROL_ID, index, trigger)}
+          onUpdateJogAction={(trigger, index, action) =>
+            updateActionInControl(JOG_WHEEL_CONTROL_ID, index, action, trigger)
+          }
+          onUpdateJogConfig={updateJogMappingConfig}
         />
       </div>
 
@@ -367,14 +414,14 @@ export default function App() {
         />
       )}
 
-      {devPanelOpen && (
+      {settings && settings.general.debugOverlay && (
         <DevPanel
           deviceStatus={deviceStatus}
           log={eventLog}
           litLeds={litLeds}
           onToggleLed={toggleLed}
           onClearLeds={clearAllLeds}
-          onClose={() => setDevPanelOpen(false)}
+          onClose={() => patchSettings({ ...settings, general: { ...settings.general, debugOverlay: false } })}
         />
       )}
     </div>
