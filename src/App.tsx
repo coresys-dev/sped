@@ -164,6 +164,19 @@ export default function App() {
     [saveMappingsForControl],
   );
 
+  const updateActionInControl = useCallback(
+    async (control: ControlId, index: number, action: Action) => {
+      const profile = await api.getActiveProfile();
+      const existing = profile.mappings[control] ?? [];
+      const others = existing.filter((m) => !(m.trigger === "press" && m.modifier === "none"));
+      const current = existing.find((m) => m.trigger === "press" && m.modifier === "none");
+      if (!current) return;
+      const nextActions = current.actions.map((a, i) => (i === index ? action : a));
+      await saveMappingsForControl(control, [...others, { ...current, actions: nextActions }]);
+    },
+    [saveMappingsForControl],
+  );
+
   const handleDropAction = useCallback(
     (control: ControlId, payload: string) => {
       try {
@@ -241,8 +254,10 @@ export default function App() {
         <PropertiesPanel
           control={selected}
           actions={actionsForSelected}
+          obsStatus={obsStatus}
           onAddAction={(action) => selected && addActionToControl(selected, action)}
           onRemoveAction={(index) => selected && removeActionFromControl(selected, index)}
+          onUpdateAction={(index, action) => selected && updateActionInControl(selected, index, action)}
         />
       </div>
 
