@@ -226,6 +226,11 @@ pub fn obs_status(state: State<AppState>) -> ObsStatus {
 }
 
 #[tauri::command]
+pub fn obs_scene_items(state: State<AppState>, scene: String) -> Result<Vec<String>, String> {
+    state.obs.scene_items(scene)
+}
+
+#[tauri::command]
 pub fn mock_send(state: State<AppState>, command: MockCommand) -> Result<(), String> {
     let guard = state.mock_handle.lock().unwrap();
     match guard.as_ref() {

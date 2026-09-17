@@ -45,6 +45,7 @@ pub fn run() {
             commands::obs_connect,
             commands::obs_disconnect,
             commands::obs_status,
+            commands::obs_scene_items,
             commands::mock_send,
             commands::get_settings,
             commands::set_settings,
